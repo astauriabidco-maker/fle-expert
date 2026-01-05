@@ -10,9 +10,14 @@ import {
     BookOpen, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown,
     Eye, Download, Mail, ClipboardList, ChevronLeft, ChevronRight,
     Target, Zap, Lock, Award, Calendar, Clock, PenTool, CreditCard,
-    Plus, Trash2, CalendarPlus
+    Plus, Trash2, CalendarPlus, Globe
 } from 'lucide-react';
+import CivicContentManager from './CivicContentManager';
 import UserMenu from './UserMenu';
+import CoachCalendar from './CoachCalendar';
+import CoachStatsPanel from './CoachStatsPanel';
+import MessagingPanel from './MessagingPanel';
+import { FEEDBACK_TEMPLATES } from '../data/feedbackTemplates';
 
 // Types
 const API_URL = 'http://localhost:3333';
@@ -69,15 +74,41 @@ const CoachDashboard: React.FC = () => {
     // Data state
     const [students, setStudents] = useState<Student[]>([]);
     const [corrections, setCorrections] = useState<any[]>([]);
+    const [proofs, setProofs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
+
+
     // UI state
-    const [activeTab, setActiveTab] = useState<'students' | 'corrections' | 'profile'>('students');
+    const [activeTab, setActiveTab] = useState<'students' | 'corrections' | 'validations' | 'profile' | 'stats' | 'calendar' | 'messages' | 'civic'>('students');
     const [myStats, setMyStats] = useState<any>(null);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
     const [detailedStudent, setDetailedStudent] = useState<any>(null);
     const [isCorrectionModalOpen, setIsCorrectionModalOpen] = useState<any>(null);
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [unreadMessages, setUnreadMessages] = useState(0);
+
+    // Fetch unread messages
+    useEffect(() => {
+        const fetchUnread = async () => {
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_URL}/messaging/unread-count`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setUnreadMessages(data.unreadCount);
+                }
+            } catch (e) {
+                console.error('Error fetching unread count:', e);
+            }
+        };
+
+        fetchUnread();
+        const interval = setInterval(fetchUnread, 30000);
+        return () => clearInterval(interval);
+    }, [token]);
     const [availabilityView, setAvailabilityView] = useState<'weekly' | 'calendar'>('weekly');
     const [isAddSlotModalOpen, setIsAddSlotModalOpen] = useState(false);
     const [newSlot, setNewSlot] = useState({
@@ -378,14 +409,16 @@ const CoachDashboard: React.FC = () => {
         if (!token) return;
         setLoading(true);
         try {
-            const [studentsRes, correctionsRes, statsRes] = await Promise.all([
+            const [studentsRes, correctionsRes, proofsRes, statsRes] = await Promise.all([
                 fetch(`${API_URL}/coach/students`, { headers: { 'Authorization': `Bearer ${token}` } }),
                 fetch(`${API_URL}/coach/corrections`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch(`${API_URL}/proofs/org/${organization?.id}?status=PENDING`, { headers: { 'Authorization': `Bearer ${token}` } }),
                 fetch(`${API_URL}/coach/my-stats`, { headers: { 'Authorization': `Bearer ${token}` } })
             ]);
 
             if (studentsRes.ok) setStudents(await studentsRes.json());
             if (correctionsRes.ok) setCorrections(await correctionsRes.json());
+            if (proofsRes.ok) setProofs(await proofsRes.json());
             if (statsRes.ok) setMyStats(await statsRes.json());
         } catch (error) {
             console.error("Coach Dashboard Error:", error);
@@ -409,8 +442,9 @@ const CoachDashboard: React.FC = () => {
             ? Math.round(students.reduce((acc, s) => acc + (s.stats.averageScore || 0), 0) / total)
             : 0;
         const pendingCorrections = corrections.length;
+        const pendingValidations = proofs.length;
 
-        return { total, inDanger, avgScore, pendingCorrections };
+        return { total, inDanger, avgScore, pendingCorrections, pendingValidations };
     }, [students, corrections]);
 
     // Filter and sort students
@@ -571,6 +605,30 @@ const CoachDashboard: React.FC = () => {
         setIsAddSlotModalOpen(false);
     };
 
+    const handleValidateProof = async (proofId: string, status: 'VALIDATED' | 'REJECTED', xpBonus: number = 20, customFeedback?: string) => {
+        try {
+            const res = await fetch(`${API_URL}/proofs/${proofId}/validate`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    status,
+                    xpAwarded: status === 'VALIDATED' ? xpBonus : 0,
+                    feedback: customFeedback || (status === 'VALIDATED' ? 'Preuve validée par le coach.' : 'Preuve refusée.')
+                })
+            });
+            if (res.ok) {
+                setProofs(proofs.filter(p => p.id !== proofId));
+                setToast({ type: 'success', message: `Preuve ${status === 'VALIDATED' ? 'validée' : 'rejetée'}` });
+            }
+        } catch (e) {
+            setToast({ type: 'error', message: "Erreur de validation" });
+        }
+        setTimeout(() => setToast(null), 3000);
+    }
+
     if (loading) return <div className="min-h-screen bg-[#0F172A] flex items-center justify-center text-white">Chargement...</div>;
 
     return (
@@ -601,15 +659,21 @@ const CoachDashboard: React.FC = () => {
                     <KPICard label="En difficulté" value={kpis.inDanger} icon={<AlertTriangle size={20} />} color="rose" onClick={() => setFilterStatus('danger')} />
                     <KPICard label="Score moyen" value={`${kpis.avgScore} % `} icon={<TrendingUp size={20} />} color="emerald" />
                     <KPICard label="Corrections" value={kpis.pendingCorrections} icon={<CheckCircle2 size={20} />} color="amber" onClick={() => setActiveTab('corrections')} badge />
+                    <KPICard label="Validations" value={kpis.pendingValidations} icon={<Award size={20} />} color="indigo" onClick={() => setActiveTab('validations')} badge={kpis.pendingValidations > 0} />
                     <KPICard label="Feedbacks" value={myStats?.stats?.feedbacksSent || 0} icon={<Mail size={20} />} color="purple" />
                     <KPICard label="Modules Assignés" value={myStats?.stats?.assignmentsMade || 0} icon={<ClipboardList size={20} />} color="indigo" />
                 </div>
 
                 {/* Tabs */}
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     <TabButton active={activeTab === 'students'} onClick={() => setActiveTab('students')} label={`Étudiants(${students.length})`} />
                     <TabButton active={activeTab === 'corrections'} onClick={() => setActiveTab('corrections')} label={`Corrections(${corrections.length})`} badge={corrections.length > 0} />
-                    <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} label="Mon Profil" />
+                    <TabButton active={activeTab === 'validations'} onClick={() => setActiveTab('validations')} label={`Validations(${proofs.length})`} badge={proofs.length > 0} />
+                    <TabButton active={activeTab === 'stats'} onClick={() => setActiveTab('stats')} label="Statistiques" />
+                    <TabButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} label="Calendrier" />
+                    <TabButton active={activeTab === 'messages'} onClick={() => setActiveTab('messages')} label="Messages" badge={unreadMessages > 0} />
+                    <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} label="Mon Profil" icon={PenTool} />
+                    <TabButton active={activeTab === 'civic'} onClick={() => setActiveTab('civic')} label="Citoyenneté" icon={Globe} />
                 </div>
 
                 {activeTab === 'students' ? (
@@ -888,6 +952,57 @@ const CoachDashboard: React.FC = () => {
                             <CorrectionCard key={correction.id} correction={correction} onReview={() => setIsCorrectionModalOpen(correction)} />
                         ))}
                     </div>
+                ) : activeTab === 'stats' ? (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <CoachStatsPanel
+                            stats={{
+                                totalStudents: students.length,
+                                activeStudents: students.filter(s => s.lastActivity.includes('2026')).length,
+                                averageScore: Math.round(students.reduce((acc, s) => acc + s.stats.averageScore, 0) / (students.length || 1)),
+                                scoreEvolution: 5.2,
+                                totalSessions: 124,
+                                hoursThisMonth: 12,
+                                feedbacksSent: 45,
+                                successRate: 88
+                            }}
+                            performanceHistory={[
+                                { month: 'Oct', score: 65 },
+                                { month: 'Nov', score: 72 },
+                                { month: 'Déc', score: 78 },
+                                { month: 'Jan', score: 82 },
+                            ]}
+                            weeklyActivity={[
+                                { day: 'Lun', sessions: 2, corrections: 3 },
+                                { day: 'Mar', sessions: 4, corrections: 1 },
+                                { day: 'Mer', sessions: 3, corrections: 5 },
+                                { day: 'Jeu', sessions: 5, corrections: 2 },
+                                { day: 'Ven', sessions: 2, corrections: 4 },
+                            ]}
+                            levelDistribution={[
+                                { level: 'A1', count: students.filter(s => s.currentLevel === 'A1').length },
+                                { level: 'A2', count: students.filter(s => s.currentLevel === 'A2').length },
+                                { level: 'B1', count: students.filter(s => s.currentLevel === 'B1').length },
+                                { level: 'B2', count: students.filter(s => s.currentLevel === 'B2').length },
+                            ]}
+                        />
+                    </div>
+                ) : activeTab === 'calendar' ? (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <CoachCalendar
+                            events={[
+                                { id: '1', date: new Date(), startTime: '10:00', endTime: '11:00', type: 'session', title: 'Cours Oral B2', studentName: 'Candidat Test 1' },
+                                { id: '2', date: new Date(), startTime: '14:00', endTime: '15:30', type: 'coaching', title: 'Préparation TCF', studentName: 'Candidat Test 2' },
+                                { id: '3', date: new Date(new Date().setDate(new Date().getDate() + 1)), startTime: '09:00', endTime: '10:30', type: 'exam', title: 'Examen Blanc CE' },
+                            ]}
+                            availabilities={availabilities}
+                        />
+                    </div>
+                ) : activeTab === 'messages' ? (
+                    <div className="h-[700px] animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <MessagingPanel />
+                    </div>
+                ) : activeTab === 'validations' ? (
+                    <ValidationsTab proofs={proofs} handleValidateProof={handleValidateProof} />
                 ) : activeTab === 'profile' ? (
                     <div className="space-y-6">
                         {/* Toast Notification */}
@@ -1313,6 +1428,10 @@ const CoachDashboard: React.FC = () => {
                             </div>
                         ) : null}
                     </div>
+                ) : activeTab === 'civic' ? (
+                    <div className="bg-[#1E293B]/50 rounded-2xl border border-slate-800 p-6">
+                        <CivicContentManager />
+                    </div>
                 ) : null}
             </div>
 
@@ -1452,11 +1571,12 @@ const KPICard = ({ label, value, icon, color, onClick, badge }: any) => (
     </button>
 );
 
-const TabButton = ({ active, onClick, label, badge }: any) => (
+const TabButton = ({ active, onClick, label, badge, icon: Icon }: any) => (
     <button
         onClick={onClick}
         className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${active ? 'bg-emerald-600 text-white' : 'bg-[#1E293B] text-slate-400 hover:text-white'} `}
     >
+        {Icon && <Icon size={16} />}
         {label}
         {badge && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />}
     </button>
@@ -1888,12 +2008,26 @@ const StudentDetailModal = ({ student, detailedStudent, onClose, onActionCreated
                                     <h4 className="font-bold text-white flex items-center gap-2">
                                         <Mail size={18} className="text-indigo-400" /> Laisser un Feedback
                                     </h4>
-                                    <textarea
-                                        value={feedback}
-                                        onChange={(e) => setFeedback(e.target.value)}
-                                        placeholder="Encouragements, conseils méthodologiques..."
-                                        className="w-full h-32 bg-slate-950 border border-slate-700 rounded-xl p-4 text-sm focus:ring-2 ring-indigo-500 focus:outline-none text-white resize-none"
-                                    />
+                                    <div className="space-y-4">
+                                        <div className="flex flex-wrap gap-2">
+                                            {FEEDBACK_TEMPLATES.slice(0, 6).map(tpl => (
+                                                <button
+                                                    key={tpl.id}
+                                                    onClick={() => setFeedback(tpl.text)}
+                                                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-bold text-slate-300 flex items-center gap-1.5 transition-all"
+                                                    title={tpl.text}
+                                                >
+                                                    <span>{tpl.icon}</span> {tpl.title}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <textarea
+                                            value={feedback}
+                                            onChange={(e) => setFeedback(e.target.value)}
+                                            placeholder="Encouragements, conseils méthodologiques..."
+                                            className="w-full h-32 bg-slate-950 border border-slate-700 rounded-xl p-4 text-sm focus:ring-2 ring-indigo-500 focus:outline-none text-white resize-none"
+                                        />
+                                    </div>
                                     <button
                                         disabled={!feedback || submitting}
                                         onClick={() => handleSubmitAction('FEEDBACK')}
@@ -2199,5 +2333,144 @@ const BulkFeedbackModal = ({ selectedCount, feedback, setFeedback, onClose, onSu
         </div>
     </div>
 );
+
+// Final helper component for validations
+const ValidationsTab = ({ proofs, handleValidateProof }: any) => {
+    const [search, setSearch] = useState('');
+    const [selectedProof, setSelectedProof] = useState<any>(null);
+    const [feedback, setFeedback] = useState('');
+
+    const filtered = (proofs || []).filter((p: any) => {
+        const matchesSearch = p.title.toLowerCase().includes(search.toLowerCase()) || p.user?.name.toLowerCase().includes(search.toLowerCase());
+        return matchesSearch;
+    });
+
+    return (
+        <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div>
+                    <h2 className="text-3xl font-black text-white flex items-center gap-3">
+                        <Award className="text-indigo-500" size={32} />
+                        Validation des Preuves
+                    </h2>
+                    <p className="text-slate-500 font-medium mt-1">Vérifiez les compétences acquises par vos étudiants.</p>
+                </div>
+
+                <div className="w-full md:w-64">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                        <input
+                            type="text"
+                            placeholder="Chercher un étudiant..."
+                            className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-sm focus:ring-2 ring-indigo-500 outline-none transition-all text-white"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {filtered.length === 0 ? (
+                <div className="text-center py-32 bg-slate-900/30 rounded-[3rem] border-2 border-slate-800 border-dashed">
+                    <div className="w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6 text-slate-700">
+                        <CheckCircle2 size={40} />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-400">Aucune preuve en attente</h3>
+                    <p className="text-slate-600 mt-2">Revenez plus tard quand vos étudiants auront soumis leurs travaux.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {filtered.map((proof: any) => (
+                        <div key={proof.id} className="bg-[#1E293B]/80 backdrop-blur-xl rounded-[2rem] border border-slate-800 p-8 hover:border-indigo-500/30 transition-all group overflow-hidden relative">
+                            <div className="flex items-start justify-between mb-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform">
+                                        <BookOpen size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-black text-lg text-white group-hover:text-indigo-400 transition-colors capitalize">{proof.title}</h3>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 text-[9px] font-black uppercase tracking-widest rounded-lg">{proof.type}</span>
+                                            <span className="text-[10px] text-slate-500 font-bold">•</span>
+                                            <span className="text-[10px] text-slate-500 font-bold">{new Date(proof.createdAt).toLocaleDateString()}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p className="text-slate-400 text-sm leading-relaxed mb-6 line-clamp-3">{proof.description}</p>
+
+                            <div className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-2xl mb-6 border border-slate-800/50">
+                                <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-xs font-bold text-indigo-400">
+                                    {proof.user?.name?.[0] || 'U'}
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-xs font-black text-white">{proof.user?.name}</p>
+                                    <p className="text-[10px] text-slate-500 font-medium">{proof.user?.currentLevel}</p>
+                                </div>
+                                <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 rounded-full border border-amber-500/20">
+                                    <Zap className="text-amber-500" size={12} />
+                                    <span className="text-[10px] font-black text-amber-500 uppercase tracking-tighter">+20 XP</span>
+                                </div>
+                            </div>
+
+                            {selectedProof?.id === proof.id ? (
+                                <div className="space-y-4 pt-4 border-t border-slate-800 animate-in slide-in-from-top-2">
+                                    <textarea
+                                        placeholder="Note pour l'étudiant..."
+                                        className="w-full p-4 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white resize-none h-24 focus:ring-2 ring-indigo-500 outline-none"
+                                        value={feedback}
+                                        onChange={e => setFeedback(e.target.value)}
+                                    />
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => {
+                                                handleValidateProof(proof.id, 'VALIDATED', 20, feedback);
+                                                setSelectedProof(null);
+                                                setFeedback('');
+                                            }}
+                                            className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <CheckCircle2 size={18} /> Valider
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                handleValidateProof(proof.id, 'REJECTED', 0, feedback);
+                                                setSelectedProof(null);
+                                                setFeedback('');
+                                            }}
+                                            className="flex-1 py-3 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white font-black rounded-xl transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <X size={18} /> Rejeter
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex gap-3">
+                                    {proof.proofUrl && (
+                                        <a
+                                            href={proof.proofUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-center text-sm transition-all"
+                                        >
+                                            Pièce jointe
+                                        </a>
+                                    )}
+                                    <button
+                                        onClick={() => setSelectedProof(proof)}
+                                        className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        Examiner <ArrowUpDown size={16} />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
 
 export default CoachDashboard;

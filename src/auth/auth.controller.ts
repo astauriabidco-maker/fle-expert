@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UnauthorizedException, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException, UseGuards, Req, Patch } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
@@ -43,5 +43,51 @@ export class AuthController {
         });
 
         return { success: true, message: 'Diagnostic completed' };
+    }
+
+    @Post('verify-prerequisites')
+    @UseGuards(JwtAuthGuard)
+    async verifyPrerequisites(@Req() req: any, @Body() body: any) {
+        const userId = req.user.id;
+
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                hasVerifiedPrerequisites: body.verified,
+                prerequisitesProofUrl: body.proofUrl || null
+            }
+        });
+
+        return { success: true, message: 'Prerequisites verified' };
+    }
+
+    @Patch('me')
+    @UseGuards(JwtAuthGuard)
+    async updateProfile(@Req() req: any, @Body() body: any) {
+        const userId = req.user.id;
+
+        const updateData: any = {};
+        if (body.name) updateData.name = body.name;
+        if (body.phone) updateData.phone = body.phone;
+        if (body.address) updateData.address = body.address;
+        if (body.postalCode) updateData.postalCode = body.postalCode;
+        if (body.city) updateData.city = body.city;
+        if (body.objective) {
+            updateData.objective = body.objective;
+            // Auto-update target level if not explicitly provided
+            if (!body.targetLevel) {
+                updateData.targetLevel = (this.authService as any).determineTargetLevel(body.objective);
+            }
+        }
+        if (body.targetLevel) updateData.targetLevel = body.targetLevel;
+
+        const updatedUser = await this.prisma.user.update({
+            where: { id: userId },
+            data: updateData,
+            include: { organization: true }
+        });
+
+        const { password, ...safeUser } = updatedUser;
+        return { success: true, user: safeUser };
     }
 }

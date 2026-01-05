@@ -21,6 +21,12 @@ import { SalesModule } from './sales/sales.module';
 import { CoachModule } from './coach/coach.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { LeadsModule } from './leads/leads.module';
+import { MessagingModule } from './messaging/messaging.module';
+import { GamificationModule } from './gamification/gamification.module';
+import { AIModule } from './ai/ai.module';
+import { CivicModule } from './civic/civic.module';
+import { NotificationsModule } from './notifications/notifications.module';
+
 
 @Module({
   imports: [
@@ -40,7 +46,13 @@ import { LeadsModule } from './leads/leads.module';
     SalesModule,
     CoachModule,
     OnboardingModule,
-    LeadsModule
+    LeadsModule,
+    MessagingModule,
+    GamificationModule,
+    AIModule,
+    CivicModule,
+    NotificationsModule
+
   ],
   controllers: [AppController],
   providers: [

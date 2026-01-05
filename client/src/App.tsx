@@ -1,4 +1,4 @@
-
+import { Toaster } from 'react-hot-toast';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { BrandProvider } from './contexts/BrandProvider';
@@ -82,11 +82,21 @@ function AppRoutes() {
   );
 }
 
+
 function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
         <BrandProvider>
+          <Toaster position="top-right" toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#0f172a',
+              color: '#fff',
+              borderRadius: '1rem',
+              fontWeight: '600'
+            }
+          }} />
           <BrowserRouter>
             <ImpersonationBanner />
             <AppRoutes />

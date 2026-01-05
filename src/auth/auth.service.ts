@@ -17,7 +17,7 @@ export class AuthService {
 
         const user = await this.prisma.user.findUnique({
             where: { email: cleanEmail },
-            include: { organization: true },
+            include: { organization: true, coach: true },
         });
 
         if (user && user.password) {
@@ -55,7 +55,20 @@ export class AuthService {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                currentLevel: user.currentLevel,
+                targetLevel: user.targetLevel,
+                objective: user.objective,
+                phone: user.phone,
+                address: user.address,
+                city: user.city,
+                postalCode: user.postalCode,
                 hasCompletedDiagnostic: user.hasCompletedDiagnostic,
+                hasVerifiedPrerequisites: user.hasVerifiedPrerequisites,
+                coach: user.coach ? {
+                    id: user.coach.id,
+                    name: user.coach.name,
+                    email: user.coach.email
+                } : null
             },
             organization: user.organization ? {
                 id: user.organization.id,

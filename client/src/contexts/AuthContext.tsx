@@ -9,8 +9,22 @@ interface User {
     organizationId?: string | null;
     currentLevel?: string;
     hasCompletedDiagnostic?: boolean;
+    hasVerifiedPrerequisites?: boolean;
     isImpersonated?: boolean;
+    objective?: 'RESIDENCY_MULTI_YEAR' | 'RESIDENCY_10_YEAR' | 'NATURALIZATION' | 'CANADA' | 'PROFESSIONAL' | null;
+    phone?: string | null;
+    address?: string | null;
+    city?: string | null;
+    postalCode?: string | null;
+    targetLevel?: string | null;
+    coach?: {
+        id: string;
+        name: string;
+        email: string;
+    } | null;
 }
+
+
 
 interface Organization {
     id: string;
@@ -31,7 +45,9 @@ interface AuthState {
 interface AuthContextType extends AuthState {
     login: (token: string, user: User, organization: Organization) => void;
     logout: () => void;
+    updateUser: (updates: Partial<User>) => void;
 }
+
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -82,6 +98,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.removeItem('authOrg');
     };
 
+    const updateUser = (updates: Partial<User>) => {
+        if (!user) return;
+        const updatedUser = { ...user, ...updates };
+        setUser(updatedUser);
+        localStorage.setItem('authUser', JSON.stringify(updatedUser));
+    };
+
+
     return (
         <AuthContext.Provider value={{
             user,
@@ -90,8 +114,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isAuthenticated: !!user && !!token,
             isLoading,
             login,
-            logout
+            logout,
+            updateUser
         }}>
+
             {children}
         </AuthContext.Provider>
     );

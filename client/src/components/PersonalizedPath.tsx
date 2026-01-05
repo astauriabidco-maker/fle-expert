@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -8,7 +9,9 @@ import {
     Trophy,
     Zap,
     TrendingUp,
-    Play
+    Play,
+    Info,
+    BookOpen
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -93,11 +96,12 @@ export default function PersonalizedPath() {
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => window.location.href = `/learning/practice?topic=${encodeURIComponent(data.nextStep.topic)}`}
-                            className="flex items-center gap-3 bg-white text-indigo-700 px-8 py-4 rounded-2xl font-black shadow-xl shadow-indigo-900/20 hover:shadow-2xl hover:bg-slate-50 transition-all group/btn"
+                            className="w-full md:w-auto flex items-center justify-center gap-3 bg-white text-indigo-700 px-8 py-4 rounded-2xl font-black shadow-xl shadow-indigo-900/20 hover:shadow-2xl hover:bg-slate-50 transition-all group/btn"
                         >
-                            <span className="text-lg">Démarrer maintenent</span>
+                            <span className="text-lg">Démarrer maintenant</span>
                             <ArrowRight size={24} className="group-hover/btn:translate-x-1 transition-transform" />
                         </motion.button>
+
                     </div>
 
                     {/* Confidence Widget */}
@@ -132,6 +136,9 @@ export default function PersonalizedPath() {
                 <SnakePath roadmap={data.roadmap} />
             </div>
 
+            {/* Prerequisites Guide Section */}
+            <PrerequisitesGuide />
+
             {/* Achievement Badges */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -143,7 +150,7 @@ export default function PersonalizedPath() {
                     <Trophy className="text-yellow-500 fill-yellow-500" size={28} />
                     Trophées débloqués
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                     {data.badges.map((badge, i) => (
                         <motion.div
                             key={badge.id}
@@ -151,19 +158,20 @@ export default function PersonalizedPath() {
                             whileInView={{ opacity: 1, scale: 1 }}
                             transition={{ delay: i * 0.1 }}
                             whileHover={{ y: -5 }}
-                            className={`flex flex-col items-center gap-4 p-6 rounded-3xl transition-all border ${badge.earned
+                            className={`flex flex-col items-center gap-3 md:gap-4 p-4 md:p-6 rounded-[2rem] transition-all border ${badge.earned
                                 ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/30'
                                 : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700 opacity-60 grayscale'
                                 }`}
                         >
-                            <div className={`w-20 h-20 rounded-2xl flex items-center justify-center shadow-sm ${badge.earned ? 'bg-white dark:bg-amber-900/40 text-amber-600' : 'bg-white dark:bg-slate-700 text-slate-400'
+                            <div className={`w-14 h-14 md:w-20 md:h-20 rounded-2xl flex items-center justify-center shadow-sm ${badge.earned ? 'bg-white dark:bg-amber-900/40 text-amber-600' : 'bg-white dark:bg-slate-700 text-slate-400'
                                 }`}>
                                 <AwardIcon name={badge.name} />
                             </div>
-                            <span className="font-bold text-center text-slate-700 dark:text-slate-300">{badge.name}</span>
+                            <span className="font-bold text-center text-xs md:text-sm text-slate-700 dark:text-slate-300 line-clamp-1">{badge.name}</span>
                         </motion.div>
                     ))}
                 </div>
+
             </motion.div>
         </div>
     );
@@ -172,25 +180,23 @@ export default function PersonalizedPath() {
 // --- Subcomponents ---
 
 function SnakePath({ roadmap }: { roadmap: Module[] }) {
-    // Generate SVG path for snake effect
-    // This is a simplified logic: In desktop, weave left/right. In mobile, straight line.
-
     return (
         <div className="relative">
-            {/* Snake Connector Line (Desktop Only for simplicity of SVG coords) */}
+            {/* Snake Connector Line */}
             <div className="absolute inset-0 pointer-events-none hidden md:block" aria-hidden="true">
-                <svg className="w-full h-full" overflow="visible">
+                <svg className="w-full h-full" viewBox={`0 0 800 ${roadmap.length * 160 + 80}`} preserveAspectRatio="none">
                     <path
                         d={generateSnakePath(roadmap.length)}
                         fill="none"
-                        stroke="#e2e8f0"
+                        stroke="currentColor"
                         strokeWidth="12"
                         strokeLinecap="round"
-                        className="dark:stroke-slate-800"
+                        strokeDasharray="20 20"
+                        className="text-slate-200 dark:text-slate-800 transition-colors duration-500"
                     />
-                    {/* Progress Fill - would need precise length calc, skipping for MVP robustness */}
                 </svg>
             </div>
+
             {/* Straight Line (Mobile) */}
             <div className="absolute left-8 top-0 bottom-0 w-2 bg-slate-200 dark:bg-slate-800 rounded-full md:hidden"></div>
 
@@ -207,32 +213,27 @@ function SnakePath({ roadmap }: { roadmap: Module[] }) {
     );
 }
 
-// Helper to generate a weaving path down the center
 function generateSnakePath(count: number) {
-    let d = "";
-    const rowHeight = 160; // Approximate height per row including gap
+    const rowHeight = 160;
+    const spacing = 96;
+    const startY = 88;
+    const centerX = 400;
 
-    // Starting point
-    d += `M 50% 40 `;
-
+    let d = `M ${centerX} ${startY}`;
     for (let i = 0; i < count - 1; i++) {
-        // Curve logic could be complex. For now, let's stick to a central sine wave or simple connection
-        // Actually, simulating Duolingo perfectly with SVG requires fixed pixel widths.
-        // Let's use a simpler visual connector: The nodes are placed, line connects them.
-        d += ` L 50% ${40 + ((i + 1) * rowHeight)}`;
+        const y2 = startY + ((i + 1) * (rowHeight + spacing)) + 48;
+        d += ` L ${centerX} ${y2}`;
     }
 
     return d;
 }
 
 
+
 function ModuleNode({ module, index }: { module: Module, index: number }) {
     const isLocked = module.status === 'locked';
     const isCompleted = module.status === 'completed';
     const isCurrent = module.status === 'current';
-
-    // Snake Alignment: Alternating left/center/right? 
-    // Or zig-zag: Left -> Right -> Left
     const alignment = index % 2 === 0 ? 'left' : 'right';
 
     return (
@@ -243,7 +244,6 @@ function ModuleNode({ module, index }: { module: Module, index: number }) {
             transition={{ duration: 0.6, type: "spring" }}
             className={`flex items-center gap-8 ${alignment === 'right' ? 'md:flex-row-reverse' : 'md:flex-row'}`}
         >
-            {/* The Text Content */}
             <div className={`flex-1 hidden md:block ${alignment === 'left' ? 'text-right' : 'text-left'}`}>
                 <h4 className={`text-xl font-black mb-1 ${isLocked ? 'text-slate-400' : 'text-slate-800 dark:text-slate-200'}`}>
                     {module.title}
@@ -253,11 +253,8 @@ function ModuleNode({ module, index }: { module: Module, index: number }) {
                 </span>
             </div>
 
-            {/* The Node (Center) */}
-            <div className="relative group mx-auto md:mx-0">
-                {/* Connector Line Logic helper if we wanted manual lines */}
+            <div className="relative group shrink-0">
 
-                {/* Main Circle */}
                 <div
                     onClick={() => !isLocked && (window.location.href = `/learning/practice?topic=${encodeURIComponent(module.topic)}`)}
                     className={`w-24 h-24 rounded-[2rem] flex items-center justify-center shadow-xl border-b-8 transition-all duration-300 transform cursor-pointer
@@ -273,7 +270,6 @@ function ModuleNode({ module, index }: { module: Module, index: number }) {
                     {isCurrent && <Star size={36} fill="currentColor" className="text-yellow-300" />}
                 </div>
 
-                {/* Popover/Tooltip (Always visible on mobile next to it?) */}
                 {isCurrent && (
                     <motion.div
                         initial={{ opacity: 0, y: -10 }}
@@ -286,7 +282,6 @@ function ModuleNode({ module, index }: { module: Module, index: number }) {
                 )}
             </div>
 
-            {/* Mobile Text Content (Always on right) */}
             <div className="flex-1 md:hidden">
                 <h4 className={`text-lg font-bold leading-tight ${isLocked ? 'text-slate-400' : 'text-slate-800 dark:text-white'}`}>
                     {module.title}
@@ -294,7 +289,6 @@ function ModuleNode({ module, index }: { module: Module, index: number }) {
                 <span className="text-xs font-bold text-slate-400 uppercase">{module.topic}</span>
             </div>
 
-            {/* Progress Bar (Desktop only, opposite side) */}
             <div className={`flex-1 hidden md:flex ${alignment === 'left' ? 'justify-start' : 'justify-end'}`}>
                 {!isLocked && (
                     <div className="flex items-center gap-3">
@@ -310,7 +304,6 @@ function ModuleNode({ module, index }: { module: Module, index: number }) {
                     </div>
                 )}
             </div>
-
         </motion.div>
     );
 }
@@ -319,4 +312,86 @@ function AwardIcon({ name }: { name: string }) {
     if (name === 'Incollable') return <TrendingUp size={32} strokeWidth={2} />;
     if (name === '7 Jours') return <Star size={32} strokeWidth={2} />;
     return <Play size={32} strokeWidth={2} />;
+}
+
+function PrerequisitesGuide() {
+    const levels = [
+        { id: 'A1', title: 'Découverte', desc: 'Rudiments de la langue. Comprendre et utiliser des expressions familières pour satisfaire des besoins concrets et immédiats.' },
+        { id: 'A2', title: 'Survie', desc: 'Vie quotidienne et sociale. Communiquer lors de tâches simples demandant un échange d’informations direct sur des sujets familiers.' },
+        { id: 'B1', title: 'Seuil', desc: 'Autonomie et Opinion. Raconter un événement, décrire un espoir et donner brièvement les raisons ou explications d’un projet.' },
+        { id: 'B2', title: 'Avancé', desc: 'Argumentation et Spontanéité. Comprendre des sujets complexes et s’exprimer avec aisance sur une large gamme de sujets d’actualité.' },
+        { id: 'C1/C2', title: 'Expert', desc: 'Expertise et Nuances. S’exprimer de façon fluide, structurée et sans effort apparent sur des sujets complexes et des implicites.' },
+    ];
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-10 overflow-hidden relative"
+        >
+            <div className="absolute top-0 right-0 p-8 opacity-5">
+                <BookOpen size={160} />
+            </div>
+
+            <div className="relative z-10">
+                <div className="flex items-center gap-4 mb-8">
+                    <div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-500/20">
+                        <BookOpen size={28} />
+                    </div>
+                    <div>
+                        <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Prérequis Pédagogiques Officiels</h3>
+                        <p className="text-slate-500 font-bold uppercase text-xs tracking-widest">Niveaux CECRL & Cibles</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                    <div className="space-y-4">
+                        {levels.map(l => (
+                            <div key={l.id} className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 hover:border-indigo-300 transition-all group">
+                                <div className="shrink-0 w-8 h-8 md:w-10 md:h-10 bg-white dark:bg-slate-700 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-[10px] md:text-xs shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                                    {l.id}
+                                </div>
+                                <div>
+                                    <h4 className="font-black text-slate-900 dark:text-white text-xs md:text-sm uppercase tracking-tight">{l.title}</h4>
+                                    <p className="text-[9px] md:text-[10px] text-slate-500 leading-relaxed font-medium">{l.desc}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex flex-col gap-6">
+                        <div className="bg-indigo-600 rounded-[2rem] p-8 text-white flex-1 flex flex-col justify-between">
+                            <div>
+                                <h4 className="text-xl font-black mb-4 uppercase leading-tight italic">Conformité Audit</h4>
+                                <div className="flex items-center gap-4 py-4 px-6 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20">
+                                    <div className="w-8 h-8 bg-emerald-400 rounded-full flex items-center justify-center text-emerald-900">
+                                        <CheckCircle2 size={18} strokeWidth={3} />
+                                    </div>
+                                    <div>
+                                        <p className="font-black text-sm uppercase">Auto-vérification</p>
+                                        <p className="text-[10px] text-white/70">Validé lors du diagnostic initial</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p className="mt-8 text-[11px] leading-relaxed opacity-80 italic">
+                                "La prise de connaissance des prérequis pédagogiques est enregistrée pour garantir la conformité de votre parcours de formation."
+                            </p>
+                        </div>
+
+                        <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
+                            <div className="flex items-center gap-3 text-slate-400 mb-2">
+                                <Info size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Aide au choix</span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 leading-relaxed">
+                                Un doute sur votre cible ? Notre IA analyse vos réponses durant le diagnostic pour vous proposer le niveau le plus adapté à votre profil actuel.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </motion.div>
+    );
 }

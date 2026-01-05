@@ -49,13 +49,17 @@ model User {
   targetLevel    String?       @default("B2") // Auto-set based on objective
   objective      String?       // RESIDENCY_MULTI_YEAR, RESIDENCY_10_YEAR, NATURALIZATION, CANADA, PROFESSIONAL
   hasCompletedDiagnostic Boolean @default(false)
+  hasVerifiedPrerequisites Boolean @default(false)
+  prerequisitesProofUrl String?
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
   examSessions   ExamSession[]
   xp             Int           @default(0)
   streakCurrent  Int           @default(0)
   streakMax      Int           @default(0)
-  lastActivityDate DateTime?   
+  lastActivityDate DateTime?
+  civicProgress  UserCivicProgress[]
+  badges         UserBadge[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   offlineProofs  OfflineProof[]
@@ -64,6 +68,8 @@ model User {
   auditLogs      AuditLog[]
   pedagogicalActions PedagogicalAction[] @relation("StudentActions")
   coachActions       PedagogicalAction[] @relation("CoachActions")
+  notifications      Notification[]
+
 
   // Sales Relations
   salesRepId     String?       // ID of the sales rep who owns this candidate
@@ -293,4 +299,95 @@ model Lead {
   status      String   @default("NEW") // NEW, CONTACTED, CONVERTED, LOST
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  title       String
+  content     String
+  type        String   @default("info") // info, achievement, civic
+  link        String?  // Optional link to redirect
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model Message {
+  id          String   @id @default(uuid())
+  senderId    String
+  recipientId String
+  content     String
+  type        String   @default("text")
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model Badge {
+  id          String      @id @default(uuid())
+  name        String
+  description String
+  icon        String      // Lucide icon name or emoji
+  color       String      // Tailwind or Hex color
+  rarity      String      @default("COMMON") // COMMON, RARE, EPIC, LEGENDARY
+  users       UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(uuid())
+  userId    String
+  badgeId   String
+  user      User     @relation(fields: [userId], references: [id])
+  badge     Badge    @relation(fields: [badgeId], references: [id])
+  unlockedAt DateTime @default(now())
+
+  @@unique([userId, badgeId])
+}
+
+model CivicModule {
+  id             String          @id @default(uuid())
+  title          String
+  topic          String
+  order          Int             @default(0)
+  lessons        CivicLesson[]
+  questions      CivicQuestion[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model CivicLesson {
+  id             String       @id @default(uuid())
+  moduleId       String
+  module         CivicModule  @relation(fields: [moduleId], references: [id])
+  title          String
+  content        String
+  videoId        String?
+  keyPoints      String?      // JSON array of strings
+  order          Int          @default(0)
+}
+
+model CivicQuestion {
+  id             String       @id @default(uuid())
+  moduleId       String?      // Optional: link to a specific module for end-of-module quiz
+  module         CivicModule? @relation(fields: [moduleId], references: [id])
+  text           String
+  options        String       // JSON array of strings
+  correctAnswer  Int          // Index of the correct option
+  explanation    String?
+  isOfficial     Boolean      @default(false) // If true, can appear in the Exam Simulator
+  category       String?      // e.g., "Histoire", "Institutions"
+  createdAt      DateTime     @default(now())
+}
+
+model UserCivicProgress {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  moduleId       String
+  lessonId       String?
+  status         String   @default("COMPLETED") // COMPLETED
+  score          Int?     // For quizzes
+  createdAt      DateTime @default(now())
+
+  @@unique([userId, moduleId, lessonId])
 }

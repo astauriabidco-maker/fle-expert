@@ -2,6 +2,10 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreditsService } from '../credits/credits.service';
 import { SecurityService } from '../common/services/security.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { EmailService } from '../common/services/email.service';
+
+
 
 @Injectable()
 export class ExamService {
@@ -9,7 +13,11 @@ export class ExamService {
         private readonly prisma: PrismaService,
         private readonly creditsService: CreditsService,
         private readonly securityService: SecurityService,
+        private readonly notificationsService: NotificationsService,
+        private readonly emailService: EmailService,
     ) { }
+
+
 
     async startExam(userId: string, organizationId: string) {
         // Start is now free. Credits are deducted upon completion.
@@ -116,6 +124,7 @@ export class ExamService {
         });
 
         // 5. Update User's currentLevel and mark diagnostic as complete (if applicable)
+        const oldLevel = session.user.currentLevel;
         await this.prisma.user.update({
             where: { id: session.userId },
             data: {
@@ -123,6 +132,23 @@ export class ExamService {
                 hasCompletedDiagnostic: true  // Mark diagnostic as complete for any exam type
             }
         });
+
+        if (level !== oldLevel) {
+            await this.notificationsService.createNotification(session.userId, {
+                title: 'Félicitations ! 🎉',
+                content: `Vous avez atteint le niveau ${level}. Continuez vos efforts !`,
+                type: 'achievement',
+                link: '/dashboard'
+            });
+
+            await this.emailService.sendAchievementCongratulation(
+                session.user.email,
+                session.user.name || 'Candidat',
+                level
+            );
+        }
+
+
 
         return {
             score: Math.round(score),

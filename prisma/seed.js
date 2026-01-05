@@ -31,6 +31,8 @@ async function main() {
     await prisma.formateurDocument.deleteMany();
     await prisma.auditLog.deleteMany();
     await prisma.lead.deleteMany();
+    await prisma.userBadge.deleteMany();
+    await prisma.badge.deleteMany();
     await prisma.user.deleteMany();
     await prisma.organization.deleteMany();
 
@@ -266,6 +268,40 @@ async function main() {
         });
     }
     console.log('✅ Created 5 leads');
+
+    // Create Badges
+    const badges = [
+        { name: 'Démarrage Canon', description: 'A complété son profil et son diagnostic.', icon: 'Zap', color: '#F59E0B', rarity: 'COMMON' },
+        { name: 'Expert Oral', description: 'A obtenu un score > 80% en Expression Orale.', icon: 'Mic', color: '#10B981', rarity: 'RARE' },
+        { name: 'Série de Fer', description: 'A maintenu une série de 7 jours.', icon: 'Flame', color: '#EF4444', rarity: 'EPIC' },
+        { name: 'Sage Plume', description: 'A rédigé 5 expressions écrites parfaites.', icon: 'PenTool', color: '#6366F1', rarity: 'LEGENDARY' },
+    ];
+
+    const createdBadges = [];
+    for (const b of badges) {
+        const badge = await prisma.badge.create({ data: b });
+        createdBadges.push(badge);
+    }
+    console.log('✅ Created 4 badges');
+
+    // Assign badges to some candidates
+    for (const candidate of candidates.slice(0, 5)) {
+        await prisma.userBadge.create({
+            data: {
+                userId: candidate.id,
+                badgeId: createdBadges[0].id, // Démarrage Canon
+            }
+        });
+        if (candidate.email === 'candidat1@test.fr') {
+            await prisma.userBadge.create({
+                data: {
+                    userId: candidate.id,
+                    badgeId: createdBadges[2].id, // Série de Fer
+                }
+            });
+        }
+    }
+    console.log('✅ Assigned badges to first 5 candidates');
 
     console.log('\n🎉 Seed completed successfully!');
     console.log('\n📋 Login credentials:');

@@ -537,5 +537,26 @@ export class AnalyticsService {
         if (!stats || stats.total === 0) return 30; // Default low
         return Math.round((stats.correct / stats.total) * 100);
     }
+    async getQualiopiAudit(orgId: string) {
+        const students = await this.prisma.user.findMany({
+            where: {
+                organizationId: orgId,
+                role: 'CANDIDATE'
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                hasVerifiedPrerequisites: true,
+                prerequisitesProofUrl: true,
+                createdAt: true,
+                currentLevel: true,
+                targetLevel: true,
+                objective: true
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        return students;
+    }
 }
 

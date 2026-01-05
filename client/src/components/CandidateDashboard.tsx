@@ -12,23 +12,32 @@ import {
     Target,
     Zap,
     BookOpen,
-    AlertCircle,
     TrendingUp,
     Award,
     Play,
-    Flame
+    Flame,
+    Mic,
+    PenTool,
+    Crown,
+    Medal,
+    Globe
 } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext';
 import { RechargePack } from './RechargePack';
 import PersonalizedPath from './PersonalizedPath';
-import CandidatePortfolio from './CandidatePortfolio';
+import { Portfolio } from './Portfolio';
 import { CandidateCalendar } from './CandidateCalendar';
+import { CandidateBilling } from './CandidateBilling';
+import CivicPath from './CivicPath';
+import MessagingPanel from './MessagingPanel';
 import CandidateProfile from './CandidateProfile';
 import { ErrorBoundary } from './ErrorBoundary';
 import UserMenu from './UserMenu';
+import NotificationCenter from './NotificationCenter';
 
-type DashboardTab = 'overview' | 'path' | 'portfolio' | 'calendar' | 'profile';
+
+type DashboardTab = 'overview' | 'path' | 'portfolio' | 'calendar' | 'profile' | 'messages' | 'billing' | 'civic';
 
 const INITIAL_SKILLS = [
     { subject: 'Compréhension Orale', A: 0, fullMark: 100 },
@@ -47,8 +56,9 @@ const CandidateDashboard: React.FC = () => {
 
     // Gamification States
     const [userStats, setUserStats] = React.useState({ xp: 0, streak: 0 });
-    const [_leaderboard, setLeaderboard] = React.useState<any[]>([]);
-    const [pathData, setPathData] = React.useState<any>(null);
+    const [leaderboard, setLeaderboard] = React.useState<any[]>([]);
+    const [badges, setBadges] = React.useState<any[]>([]);
+    const [aiDiagnostic, setAiDiagnostic] = React.useState<any>(null);
 
     React.useEffect(() => {
         const fetchData = async () => {
@@ -86,8 +96,27 @@ const CandidateDashboard: React.FC = () => {
                     setLeaderboard(await leaderboardRes.json());
                 }
                 if (pathRes.ok) {
-                    setPathData(await pathRes.json());
+                    // Path data could be used here if needed
                 }
+
+                // Fetch Gamification Data
+                const [badgesRes, leaderboardResReal] = await Promise.all([
+                    fetch(`http://localhost:3333/gamification/badges`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch(`http://localhost:3333/gamification/leaderboard`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                ]);
+
+                if (badgesRes.ok) setBadges(await badgesRes.json());
+                if (leaderboardResReal.ok) setLeaderboard(await leaderboardResReal.json());
+
+                // Fetch AI Diagnostic
+                const aiRes = await fetch(`http://localhost:3333/ai/diagnostic`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (aiRes.ok) setAiDiagnostic(await aiRes.json());
             } catch (err) {
                 console.error("Error fetching candidate data:", err);
             } finally {
@@ -178,7 +207,9 @@ const CandidateDashboard: React.FC = () => {
                                     className="h-14 w-auto object-contain opacity-90"
                                 />
                             )}
+                            <NotificationCenter />
                             <UserMenu />
+
                         </div>
                     </header>
 
@@ -209,6 +240,28 @@ const CandidateDashboard: React.FC = () => {
                             Calendrier
                         </button>
                         <button
+                            onClick={() => setActiveTab('messages')}
+                            className={`px-6 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'messages' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+                        >
+                            Messages
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('billing')}
+                            className={`px-6 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'billing' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+                        >
+                            Facturation
+                        </button>
+
+                        {(user?.objective === 'NATURALIZATION' || user?.objective === 'RESIDENCY_10_YEAR') && (
+                            <button
+                                onClick={() => setActiveTab('civic')}
+                                className={`px-6 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'civic' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+                            >
+                                Citoyenneté
+                            </button>
+                        )}
+
+                        <button
                             onClick={() => setActiveTab('profile')}
                             className={`px-6 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'profile' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
                         >
@@ -218,33 +271,65 @@ const CandidateDashboard: React.FC = () => {
 
                     {activeTab === 'path' ? (
                         <PersonalizedPath />
+                    ) : activeTab === 'portfolio' ? (
+                        <Portfolio organizationId={user?.organizationId || ''} userId={user?.id || ''} token={token || ''} />
                     ) : activeTab === 'overview' ? (
                         <>
                             {/* Hero Section: Level & Stats */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
                                 {/* Level Card */}
-                                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
-                                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                        <Trophy className="w-24 h-24 text-primary/80" />
+                                <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between relative overflow-hidden group hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-500">
+                                    <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity rotate-12 group-hover:rotate-0 duration-700">
+                                        <Trophy className="w-32 h-32 text-indigo-600" />
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Niveau Actuel</p>
-                                        <div className="text-5xl font-extrabold text-primary dark:text-indigo-400 mb-2">{currentLevel}</div>
-                                        <p className="text-sm text-green-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                                            <TrendingUp className="w-4 h-4" /> {latestSession ? `Basé sur ton score de ${latestSession.score}` : 'En attente de diagnostic'}
+
+                                    <div className="relative z-10">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Maîtrise Actuelle</p>
+                                            <div className="flex items-center gap-1.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-full text-[10px] font-black">
+                                                <Award size={12} /> LEVEL UP PROCHE
+                                            </div>
+                                        </div>
+                                        <div className="flex items-baseline gap-2 mb-2">
+                                            <div className="text-6xl font-black bg-gradient-to-br from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">{currentLevel}</div>
+                                            <div className="text-sm font-bold text-slate-400 italic">Score: {latestSession?.score || 0}</div>
+                                        </div>
+                                        <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+                                            <TrendingUp className="w-4 h-4" /> {latestSession ? `+12% vs semaine dernière` : 'Prêt pour le diagnostic'}
                                         </p>
                                     </div>
-                                    <div className="mt-6">
-                                        <div className="flex justify-between text-sm font-medium mb-2 text-slate-600 dark:text-slate-400">
-                                            <span>Objectif : B2+</span>
-                                            <span>{Math.max(10, progressPercent)}%</span>
+
+                                    <div className="mt-8 space-y-4">
+                                        <div className="space-y-1.5">
+                                            <div className="flex justify-between text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                                <span>Progression vers {currentLevel === 'A1' ? 'A2' : 'B2'}</span>
+                                                <span className="text-indigo-600 dark:text-indigo-400">{Math.max(10, progressPercent)}%</span>
+                                            </div>
+                                            <div className="w-full bg-slate-100 dark:bg-slate-800/50 rounded-full h-2.5 p-0.5 overflow-hidden border border-slate-200 dark:border-slate-700">
+                                                <div
+                                                    className="h-full rounded-full bg-gradient-to-r from-indigo-600 via-purple-500 to-indigo-400 shadow-[0_0_15px_rgba(79,70,229,0.4)] transition-all duration-1000 ease-out"
+                                                    style={{ width: `${Math.max(10, progressPercent)}%` }}
+                                                ></div>
+                                            </div>
                                         </div>
-                                        <div className="w-full bg-gray-100 dark:bg-slate-800 rounded-full h-3 overflow-hidden">
-                                            <div
-                                                className="bg-primary dark:bg-indigo-600 h-3 rounded-full transition-all duration-1000 ease-out"
-                                                style={{ width: `${Math.max(10, progressPercent)}%` }}
-                                            ></div>
+
+                                        <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/30 p-3 rounded-2xl border border-slate-100 dark:border-slate-800/50">
+                                            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                                                <Zap size={20} className="fill-current" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase">XP Totale</p>
+                                                    <p className="text-[10px] font-black text-slate-700 dark:text-white">{userStats.xp} / 5000</p>
+                                                </div>
+                                                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-amber-500 transition-all duration-1000"
+                                                        style={{ width: `${(userStats.xp / 5000) * 100}%` }}
+                                                    ></div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -278,17 +363,100 @@ const CandidateDashboard: React.FC = () => {
                                             <Zap className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
                                         </div>
                                     </div>
-                                    <h3 className="text-lg font-bold text-indigo-900 dark:text-white mb-3">Le conseil de ton coach</h3>
+                                    <h3 className="text-lg font-bold text-indigo-900 dark:text-white mb-3">Le conseil de ton coach AI</h3>
                                     <p className="text-indigo-800 dark:text-slate-300 text-sm leading-relaxed mb-4 flex-grow">
-                                        {latestSession ? (
-                                            <>"Bravo pour ton dernier score de <span className="font-semibold text-indigo-900 dark:text-white">{latestSession.score}</span> ! Tes performances en CO sont solides, mais nous devrions travailler l'expression orale ensemble."</>
+                                        {aiDiagnostic?.status === 'READY' ? (
+                                            aiDiagnostic.analysis
                                         ) : (
-                                            <>"Bienvenue ! Passe ton premier examen blanc pour obtenir un diagnostic complet de tes compétences."</>
+                                            "Analyse de tes performances en cours... Termine un examen blanc pour un diagnostic complet."
                                         )}
                                     </p>
                                     <button className="bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 font-semibold py-2 px-4 rounded-xl text-sm shadow-sm border border-indigo-100 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-700 transition-colors">
-                                        {latestSession ? "Voir l'exercice recommandé" : "Lancer le diagnostic"}
+                                        {aiDiagnostic?.status === 'READY' ? "Voir le détail" : "Lancer le diagnostic"}
                                     </button>
+                                </div>
+
+                                {/* Real Coach Card (New) */}
+                                {user?.coach && (
+                                    <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col group hover:shadow-xl transition-all duration-300">
+                                        <div className="flex items-center gap-4 mb-6">
+                                            <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white text-xl font-black shadow-lg shadow-indigo-500/20">
+                                                {user.coach.name[0]}
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mon Coach Expert</p>
+                                                <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight">{user.coach.name}</h3>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3 mb-6 flex-grow">
+                                            <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                                                <Target size={14} className="text-indigo-500" /> Spécialiste Préparation TCF
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                                                <TrendingUp size={14} className="text-emerald-500" /> Taux de réussite : 98%
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => setActiveTab('messages')}
+                                            className="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black rounded-xl text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-slate-900/10"
+                                        >
+                                            Envoyer un message
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Badges Card (New) */}
+                                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col">
+                                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                        <Medal className="w-4 h-4" /> Mes Badges
+                                    </h3>
+                                    <div className="grid grid-cols-4 gap-4 flex-grow content-start">
+                                        {badges.map((ub: any) => (
+                                            <div key={ub.id} className="flex flex-col items-center gap-2 group cursor-help relative" title={ub.badge.description}>
+                                                <div className="w-12 h-12 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shadow-lg" style={{ backgroundColor: `${ub.badge.color}20`, color: ub.badge.color, border: `2px solid ${ub.badge.color}40` }}>
+                                                    {ub.badge.icon === 'Zap' && <Zap size={20} />}
+                                                    {ub.badge.icon === 'Mic' && <Mic size={20} />}
+                                                    {ub.badge.icon === 'Flame' && <Flame size={20} />}
+                                                    {ub.badge.icon === 'PenTool' && <PenTool size={20} />}
+                                                </div>
+                                                <span className="text-[9px] font-bold text-slate-600 dark:text-slate-400 text-center leading-tight">{ub.badge.name}</span>
+                                            </div>
+                                        ))}
+                                        {badges.length === 0 && (
+                                            <div className="col-span-4 py-8 flex flex-col items-center opacity-40">
+                                                <div className="w-12 h-12 rounded-full border-2 border-dashed border-slate-300 mb-2"></div>
+                                                <span className="text-[10px] italic">Aucun badge débloqué</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Leaderboard Card (New) */}
+                                <div className="bg-slate-900 dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-800 flex flex-col relative overflow-hidden">
+                                    <div className="absolute top-[-20px] right-[-20px] opacity-10">
+                                        <Crown size={120} className="text-amber-500 rotate-12" />
+                                    </div>
+                                    <h3 className="text-sm font-black text-amber-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2 relative z-10">
+                                        <Crown className="w-4 h-4" /> Classement Local
+                                    </h3>
+                                    <div className="space-y-3 relative z-10 flex-grow">
+                                        {leaderboard.slice(0, 5).map((entry, idx) => (
+                                            <div key={entry.id} className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${entry.id === user?.id ? 'bg-amber-500/10 border border-amber-500/20' : 'hover:bg-slate-800'}`}>
+                                                <span className={`w-6 text-center font-black text-xs ${idx === 0 ? 'text-amber-500' : 'text-slate-500'}`}>{idx + 1}</span>
+                                                <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] font-bold text-white">
+                                                    {entry.name.charAt(0)}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={`text-xs font-bold truncate ${entry.id === user?.id ? 'text-amber-500' : 'text-slate-200'}`}>{entry.name}</p>
+                                                    <p className="text-[9px] text-slate-500 font-bold uppercase">{entry.currentLevel}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xs font-black text-slate-300">{entry.xp} XP</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <button className="mt-4 w-full py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-white transition-colors">Voir tout le classement</button>
                                 </div>
                             </div>
 
@@ -360,67 +528,63 @@ const CandidateDashboard: React.FC = () => {
                                         <Target className="w-5 h-5 text-slate-400" /> Actions Rapides
                                     </h3>
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                        <button
-                                            onClick={() => pathData?.nextStep && (window.location.href = `/learning/practice?topic=${encodeURIComponent(pathData.nextStep.topic)}`)}
-                                            className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all group text-left"
-                                        >
-                                            <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-lg group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
-                                                <Play className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                                        {aiDiagnostic?.suggestions?.length > 0 ? (
+                                            aiDiagnostic.suggestions.slice(0, 3).map((suggestion: any) => (
+                                                <button
+                                                    key={suggestion.id}
+                                                    onClick={() => window.location.href = `/learning/practice?topic=${suggestion.topic}`}
+                                                    className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all group text-left"
+                                                >
+                                                    <div className="bg-indigo-100 dark:bg-indigo-900/30 p-3 rounded-lg group-hover:bg-indigo-200 dark:group-hover:bg-indigo-900/50 transition-colors">
+                                                        {suggestion.type === 'PRACTICE' ? <Play className="w-6 h-6 text-indigo-600 dark:text-indigo-400" /> : <BookOpen className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-bold text-slate-800 dark:text-white group-hover:text-indigo-700 dark:group-hover:text-indigo-400 line-clamp-1">{suggestion.title}</div>
+                                                        <div className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">
+                                                            {suggestion.description}
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="col-span-3 py-6 text-center text-slate-400 italic text-sm border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                                                Aucune recommandation personnalisée disponible.
                                             </div>
-                                            <div>
-                                                <div className="font-bold text-slate-800 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400">Reprendre</div>
-                                                <div className="text-xs text-slate-500 dark:text-slate-400">
-                                                    {pathData?.nextStep ? `Module ${pathData.nextStep.title}` : 'Chargement...'}
-                                                </div>
-                                            </div>
-                                        </button>
-
-                                        <button
-                                            onClick={() => window.location.href = '/exam/session'}
-                                            className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 dark:border-slate-800 hover:border-amber-400 dark:hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-all group text-left">
-                                            <div className="bg-amber-100 dark:bg-amber-900/30 p-3 rounded-lg group-hover:bg-amber-200 dark:group-hover:bg-amber-900/50 transition-colors">
-                                                <Award className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-                                            </div>
-                                            <div>
-                                                <div className="font-bold text-slate-800 dark:text-white group-hover:text-amber-700 dark:group-hover:text-amber-400">Examen Blanc</div>
-                                                <div className="text-xs text-slate-500 dark:text-slate-400">Prêt à te tester ?</div>
-                                            </div>
-                                        </button>
-
-                                        <button className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 dark:border-slate-800 hover:border-red-400 dark:hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all group text-left">
-                                            <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-lg group-hover:bg-red-200 dark:group-hover:bg-red-900/50 transition-colors">
-                                                <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
-                                            </div>
-                                            <div>
-                                                <div className="font-bold text-slate-800 dark:text-white group-hover:text-red-700 dark:group-hover:text-red-400">Mes Erreurs</div>
-                                                <div className="text-xs text-slate-500 dark:text-slate-400">
-                                                    {pathData ? `${pathData.totalErrors} points à revoir` : '-- points'}
-                                                </div>
-                                            </div>
-                                        </button>
+                                        )}
                                     </div>
                                 </div>
 
                                 {/* Civisme Card - Spans 1 column */}
-                                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col justify-between">
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-4">
-                                            <BookOpen className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                                            <h3 className="font-bold text-slate-900 dark:text-white">Réforme 2026</h3>
-                                        </div>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Parcours Citoyenneté & Valeurs</p>
+                                {(user?.objective === 'NATURALIZATION' || user?.objective === 'RESIDENCY_10_YEAR') ? (
+                                    <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-4">
+                                                <BookOpen className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                                                <h3 className="font-bold text-slate-900 dark:text-white">Réforme 2026</h3>
+                                            </div>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Parcours Citoyenneté & Valeurs</p>
 
-                                        <div className="grid grid-cols-4 gap-2 mb-4">
-                                            {[1, 2, 3, 4].map((i) => (
-                                                <div key={i} className={`h-2 rounded-full ${i <= 3 ? 'bg-emerald-500 dark:bg-emerald-600' : 'bg-gray-200 dark:bg-slate-800'}`}></div>
-                                            ))}
+                                            <div className="grid grid-cols-4 gap-2 mb-4">
+                                                {[1, 2, 3, 4].map((i) => (
+                                                    <div key={i} className={`h-2 rounded-full ${i <= 1 ? 'bg-emerald-500 dark:bg-emerald-600' : 'bg-gray-200 dark:bg-slate-800'}`}></div>
+                                                ))}
+                                            </div>
                                         </div>
+
+                                        <button
+                                            onClick={() => setActiveTab('civic')}
+                                            className="w-full py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-sm font-semibold rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
+                                        >
+                                            Démarrer
+                                        </button>
                                     </div>
-
-                                    <button className="w-full py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-sm font-semibold rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors">
-                                        Continuer
-                                    </button>
-                                </div>
+                                ) : (
+                                    <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col justify-center items-center text-center">
+                                        <Globe className="w-10 h-10 text-slate-200 mb-4" />
+                                        <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Culture & FLE</p>
+                                        <p className="text-[10px] text-slate-500 mt-2">Pratique ta langue en contexte réel.</p>
+                                    </div>
+                                )}
 
                             </div>
 
@@ -447,9 +611,7 @@ const CandidateDashboard: React.FC = () => {
                         </>
                     ) : null}
 
-                    {activeTab === 'portfolio' && (
-                        <CandidatePortfolio />
-                    )}
+
 
                     {activeTab === 'calendar' && (
                         <ErrorBoundary>
@@ -459,6 +621,20 @@ const CandidateDashboard: React.FC = () => {
 
                     {activeTab === 'profile' && (
                         <CandidateProfile />
+                    )}
+
+                    {activeTab === 'messages' && (
+                        <div className="h-[700px] animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <MessagingPanel initialPartnerId={user?.coach?.id} />
+                        </div>
+                    )}
+
+                    {activeTab === 'billing' && (
+                        <CandidateBilling />
+                    )}
+
+                    {activeTab === 'civic' && (
+                        <CivicPath />
                     )}
                 </div>
             )}

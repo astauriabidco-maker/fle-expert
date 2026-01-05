@@ -81,5 +81,11 @@ export class AnalyticsController {
     ) {
         return this.analyticsService.getStudentDetailedProfile(studentId, orgId);
     }
+
+    @Get('qualiopi/:orgId')
+    @Roles('ADMIN', 'COACH', 'ORG_ADMIN')
+    async getQualiopiAudit(@Param('orgId') orgId: string) {
+        return this.analyticsService.getQualiopiAudit(orgId);
+    }
 }
 

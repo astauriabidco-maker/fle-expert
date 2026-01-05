@@ -114,6 +114,8 @@ interface AuditLog {
 }
 
 import ContractManagement from './ContractManagement';
+import NotificationCenter from './NotificationCenter';
+
 
 type TabType = 'dashboard' | 'orgs' | 'users' | 'ai' | 'logs' | 'contracts' | 'settings';
 
@@ -281,13 +283,9 @@ export default function SuperAdminDashboard() {
                             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                             <span className="text-xs font-medium">Platform Online</span>
                         </div>
-                        <div className="relative cursor-pointer group" title="Alertes critiques (Crédits / Qualité IA)">
-                            <AlertCircle className="w-5 h-5 group-hover:text-rose-500 transition-colors" />
-                            <span className="absolute -top-1.5 -right-1.5 w-[18px] h-[18px] bg-rose-600 text-[10px] text-white font-black flex items-center justify-center rounded-full border-2 border-[#0F172A] shadow-lg animate-bounce">
-                                3
-                            </span>
-                        </div>
+                        <NotificationCenter />
                         <Settings className="w-5 h-5 cursor-pointer hover:text-white transition-colors" />
+
                     </div>
                 </header>
 

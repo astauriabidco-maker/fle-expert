@@ -19,6 +19,7 @@ import {
     CheckCircle,
     XCircle,
     FileText,
+    ShieldCheck,
     Settings as SettingsIcon,
     LayoutDashboard,
     GraduationCap,
@@ -28,10 +29,14 @@ import {
     X,
     MoreHorizontal,
     TrendingUp,
-    ShieldCheck,
-    ArrowUpRight
+    ArrowUpRight,
+    Globe
 } from 'lucide-react';
+import CivicContentManager from './CivicContentManager';
+import QualiopiAuditPanel from './QualiopiAuditPanel';
+import NotificationCenter from './NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
+
 import {
     ResponsiveContainer,
     BarChart as ReBarChart,
@@ -43,7 +48,7 @@ import {
     Tooltip
 } from 'recharts';
 
-type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres';
+type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres' | 'admin' | 'civic' | 'audit';
 
 export default function OrgAdminDashboard() {
     const { organization, token, logout, user } = useAuth();
@@ -204,7 +209,7 @@ export default function OrgAdminDashboard() {
         }
     }
 
-    const handleValidateProof = async (proofId: string, status: 'VALIDATED' | 'REJECTED', xpBonus: number = 20) => {
+    const handleValidateProof = async (proofId: string, status: 'VALIDATED' | 'REJECTED', xpBonus: number = 20, customFeedback?: string) => {
         try {
             const res = await fetch(`http://localhost:3333/proofs/${proofId}/validate`, {
                 method: 'PATCH',
@@ -215,7 +220,7 @@ export default function OrgAdminDashboard() {
                 body: JSON.stringify({
                     status,
                     xpAwarded: status === 'VALIDATED' ? xpBonus : 0,
-                    feedback: status === 'VALIDATED' ? 'Validé par le tuteur.' : 'Preuve refusée.'
+                    feedback: customFeedback || (status === 'VALIDATED' ? 'Validé par le tuteur.' : 'Preuve refusée.')
                 })
             });
             if (res.ok) {
@@ -265,9 +270,11 @@ export default function OrgAdminDashboard() {
         { id: 'equipe', label: 'Gestion d\'Équipe', icon: Users },
         { id: 'cohorte', label: 'Candidats', icon: GraduationCap },
         { id: 'bibliotheque', label: 'Bibliothèque', icon: Library },
+        { id: 'civic', label: 'Citoyenneté', icon: Globe },
         { id: 'validations', label: 'Validations', icon: CheckCircle2, count: proofs.length },
         { id: 'propositions', label: 'Devis & Plans', icon: FileText },
         { id: 'rapports', label: 'Rapports & Factures', icon: History },
+        { id: 'audit', label: 'Audit Qualiopi', icon: ShieldCheck },
         { id: 'parametres', label: 'Configuration', icon: SettingsIcon },
     ];
 
@@ -386,7 +393,9 @@ export default function OrgAdminDashboard() {
                             Content Lab
                         </button>
 
+                        <NotificationCenter />
                         <div className="flex items-center gap-3 pl-6 border-l border-slate-800">
+
                             <div className="flex flex-col items-end hidden sm:flex">
                                 <span className="text-xs font-bold text-white">{user?.name}</span>
                                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Administrateur</span>
@@ -457,6 +466,8 @@ export default function OrgAdminDashboard() {
                             )}
                             {activeTab === 'equipe' && <TeamManagement organization={organization} token={token} />}
                             {activeTab === 'rapports' && <ReportsBilling organization={organization} token={token} transactions={transactions} />}
+                            {activeTab === 'civic' && <CivicContentManager />}
+                            {activeTab === 'audit' && <QualiopiAuditPanel orgId={organization?.id || ''} token={token || ''} />}
                             {activeTab === 'parametres' && (
                                 <Settings
                                     settings={settings}
@@ -1016,44 +1027,160 @@ function Cohorte({ searchQuery, setSearchQuery, filteredStudents, token, proposa
 }
 
 function Validations({ proofs, handleValidateProof }: any) {
-    return (
-        <div className="max-w-4xl mx-auto space-y-6">
-            <h2 className="text-2xl font-black text-white flex items-center gap-3 mb-8">
-                <CheckCircle className="text-emerald-500" />
-                Preuves en attente ({proofs.length})
-            </h2>
+    const [search, setSearch] = useState('');
+    const [filter, setFilter] = useState('ALL');
+    const [selectedProof, setSelectedProof] = useState<any>(null);
+    const [feedback, setFeedback] = useState('');
 
-            {proofs.length === 0 ? (
-                <div className="text-center py-20 bg-slate-900/50 rounded-[2.5rem] border border-slate-800 border-dashed">
-                    <CheckCircle size={48} className="mx-auto text-slate-800 mb-4" />
-                    <p className="text-slate-500 font-bold">Aucune preuve à valider.</p>
+    const filtered = proofs.filter((p: any) => {
+        const matchesSearch = p.title.toLowerCase().includes(search.toLowerCase()) || p.user?.name.toLowerCase().includes(search.toLowerCase());
+        const matchesFilter = filter === 'ALL' || p.type === filter;
+        return matchesSearch && matchesFilter;
+    });
+
+    return (
+        <div className="max-w-6xl mx-auto space-y-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div>
+                    <h2 className="text-3xl font-black text-white flex items-center gap-3">
+                        <ShieldCheck className="text-blue-500" size={32} />
+                        Centre de Validation
+                    </h2>
+                    <p className="text-slate-500 font-medium mt-1">Vérifiez et approuvez les preuves d'apprentissage de vos candidats.</p>
+                </div>
+
+                <div className="flex gap-3 w-full md:w-auto">
+                    <div className="relative flex-1 md:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                        <input
+                            type="text"
+                            placeholder="Rechercher..."
+                            className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-sm focus:ring-2 ring-blue-500 outline-none transition-all"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                        />
+                    </div>
+                    <select
+                        className="px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-sm font-bold text-slate-400 outline-none focus:ring-2 ring-blue-500"
+                        value={filter}
+                        onChange={e => setFilter(e.target.value)}
+                    >
+                        <option value="ALL">Tous types</option>
+                        <option value="PRACTICE">Entraînement</option>
+                        <option value="HOMEWORK">Devoirs</option>
+                        <option value="EXTERNAL">Externe</option>
+                    </select>
+                </div>
+            </div>
+
+            {filtered.length === 0 ? (
+                <div className="text-center py-32 bg-slate-900/30 rounded-[3rem] border-2 border-slate-800 border-dashed">
+                    <div className="w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6 text-slate-700">
+                        <CheckCircle size={40} />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-400">Tout est à jour !</h3>
+                    <p className="text-slate-600 mt-2">Aucune preuve en attente de validation pour le moment.</p>
                 </div>
             ) : (
-                <div className="grid gap-4">
-                    {proofs.map((proof: any) => (
-                        <div key={proof.id} className="p-8 bg-[#1E293B]/50 backdrop-blur-xl rounded-3xl border border-slate-800 flex items-start justify-between">
-                            <div className="flex items-start gap-4">
-                                <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400 shrink-0">
-                                    <FileText size={20} />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-lg text-white mb-1 capitalize">{proof.title}</h3>
-                                    <div className="flex gap-2 mb-3">
-                                        <span className="px-2 py-0.5 text-[10px] font-black bg-blue-500/10 text-blue-400 rounded-full uppercase tracking-widest">{proof.type}</span>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {filtered.map((proof: any) => (
+                        <motion.div
+                            key={proof.id}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="bg-[#1E293B]/50 backdrop-blur-xl rounded-[2rem] border border-slate-800 p-8 hover:border-blue-500/30 transition-all group overflow-hidden relative"
+                        >
+                            <div className="flex items-start justify-between mb-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 rounded-2xl flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                                        <FileText size={24} />
                                     </div>
-                                    <p className="text-slate-400 text-sm mb-4">{proof.description}</p>
-                                    <div className="flex items-center gap-3 text-xs text-slate-500 italic">
-                                        <span>Par: <strong>{proof.user?.name}</strong></span>
-                                        <span>•</span>
-                                        <span>{new Date(proof.createdAt).toLocaleDateString()}</span>
+                                    <div>
+                                        <h3 className="font-black text-lg text-white group-hover:text-blue-400 transition-colors capitalize">{proof.title}</h3>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[9px] font-black uppercase tracking-widest rounded-lg">{proof.type}</span>
+                                            <span className="text-[10px] text-slate-500 font-bold">•</span>
+                                            <span className="text-[10px] text-slate-500 font-bold">{new Date(proof.createdAt).toLocaleDateString('fr-FR')}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => handleValidateProof(proof.id, 'VALIDATED')} className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl hover:bg-emerald-500 hover:text-white transition-all"><CheckCircle size={20} /></button>
-                                <button onClick={() => handleValidateProof(proof.id, 'REJECTED')} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><XCircle size={20} /></button>
+
+                            <p className="text-slate-400 text-sm leading-relaxed mb-6 line-clamp-3">{proof.description}</p>
+
+                            <div className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-2xl mb-6">
+                                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400">
+                                    {proof.user?.name?.[0] || 'U'}
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-xs font-black text-white">{proof.user?.name}</p>
+                                    <p className="text-[10px] text-slate-500 font-medium">Candidat {proof.user?.currentLevel}</p>
+                                </div>
+                                <Zap className="text-amber-500" size={16} />
+                                <span className="text-xs font-black text-amber-500">+20 XP</span>
                             </div>
-                        </div>
+
+                            {selectedProof?.id === proof.id ? (
+                                <div className="space-y-4 pt-4 border-t border-slate-800 animate-in slide-in-from-top-2">
+                                    <textarea
+                                        placeholder="Votre feedback (optionnel)..."
+                                        className="w-full p-4 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white resize-none h-24 focus:ring-2 ring-blue-500 outline-none"
+                                        value={feedback}
+                                        onChange={e => setFeedback(e.target.value)}
+                                    />
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => {
+                                                handleValidateProof(proof.id, 'VALIDATED', 20, feedback);
+                                                setSelectedProof(null);
+                                                setFeedback('');
+                                            }}
+                                            className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <CheckCircle size={18} /> Valider
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                handleValidateProof(proof.id, 'REJECTED', 0, feedback);
+                                                setSelectedProof(null);
+                                                setFeedback('');
+                                            }}
+                                            className="flex-1 py-3 bg-rose-600/10 hover:bg-rose-600 text-rose-500 hover:text-white font-black rounded-xl transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <XCircle size={18} /> Rejeter
+                                        </button>
+                                        <button
+                                            onClick={() => setSelectedProof(null)}
+                                            className="p-3 text-slate-500 hover:text-white transition-colors"
+                                        >
+                                            <X size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex gap-3">
+                                    {proof.proofUrl && (
+                                        <a
+                                            href={proof.proofUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-center text-sm transition-all"
+                                        >
+                                            Voir la pièce
+                                        </a>
+                                    )}
+                                    <button
+                                        onClick={() => setSelectedProof(proof)}
+                                        className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        Traiter la demande <ArrowRight size={16} />
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Decoration */}
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl -mr-16 -mt-16 pointer-events-none" />
+                        </motion.div>
                     ))}
                 </div>
             )}

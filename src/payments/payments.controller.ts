@@ -63,4 +63,16 @@ export class PaymentsController {
 
         return { received: true };
     }
+
+    @Post('history')
+    @UseGuards(JwtAuthGuard)
+    async getPaymentHistory(@Body() body: { orgId: string }) {
+        if (!body.orgId) {
+            throw new BadRequestException('Missing orgId');
+        }
+        return this.prisma.creditTransaction.findMany({
+            where: { organizationId: body.orgId },
+            orderBy: { createdAt: 'desc' }
+        });
+    }
 }
