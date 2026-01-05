@@ -1,0 +1,56 @@
+
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: fle_expert
+    ports:
+      - "5433:5432" # Mapped to 5433 to avoid conflict if user has local PG on 5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - fle-expert
+
+  backend:
+    build: .
+    restart: always
+    ports:
+      - "3333:3000"
+    environment:
+      - DATABASE_URL=postgresql://admin:password123@db:5432/fle_expert?schema=public
+      - JWT_SECRET=super-secret-key-change-me
+      - PORT=3000
+    depends_on:
+      - db
+    command: >
+      sh -c "npx prisma migrate deploy && npm run start:prod"
+    networks:
+      - fle-expert
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3333
+    depends_on:
+      - backend
+    networks:
+      - fle-expert
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:
+
+networks:
+  fle-expert:
+    driver: bridge

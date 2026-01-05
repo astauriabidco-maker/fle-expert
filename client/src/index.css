@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  /* Using utility class here might require @apply to be valid after import, 
+     but in v4 it's better to just use standard CSS or ensure @apply works. 
+     For safety, I'll use the CSS variable or color directly to avoid @apply issues if not fully configured 
+     or just rely on the element class in App.tsx/index.html if possible. 
+     But let's try @apply as it should work with @import "tailwindcss". */
+  @apply bg-gray-50;
+}

@@ -1,0 +1,296 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums removed for SQLite compatibility
+
+model Organization {
+  id             String              @id @default(uuid())
+  name           String
+  slug           String              @unique
+  creditsBalance Int                 @default(0)
+  publicHourlyRate Float             @default(0) // New field for quotes
+  monthlyQuota   Int                 @default(1000) // Max tests per month
+  aiSettings     String?             // JSON: { provider, apiKey, model }
+  logoUrl        String?
+  primaryColor   String?
+  status         String              @default("ACTIVE") // ACTIVE, SUSPENDED, DELETED
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  users          User[]
+  examSessions   ExamSession[]
+  transactions   CreditTransaction[]
+  questions      Question[]
+  invitations    Invitation[]
+  offlineProofs  OfflineProof[]
+  contracts      Contract[]
+  proposals      TrainingProposal[]
+  auditLogs      AuditLog[]
+}
+
+model User {
+  id             String        @id @default(uuid())
+  email          String        @unique
+  password       String
+  name           String?
+  role           String        @default("CANDIDATE")
+  currentLevel   String        @default("A1")
+  targetLevel    String?       @default("B2") // Auto-set based on objective
+  objective      String?       // RESIDENCY_MULTI_YEAR, RESIDENCY_10_YEAR, NATURALIZATION, CANADA, PROFESSIONAL
+  hasCompletedDiagnostic Boolean @default(false)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  examSessions   ExamSession[]
+  xp             Int           @default(0)
+  streakCurrent  Int           @default(0)
+  streakMax      Int           @default(0)
+  lastActivityDate DateTime?   
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  offlineProofs  OfflineProof[]
+  contracts      Contract[]
+  proposals      TrainingProposal[]
+  auditLogs      AuditLog[]
+  pedagogicalActions PedagogicalAction[] @relation("StudentActions")
+  coachActions       PedagogicalAction[] @relation("CoachActions")
+
+  // Sales Relations
+  salesRepId     String?       // ID of the sales rep who owns this candidate
+  salesRep       User?         @relation("SalesCandidates", fields: [salesRepId], references: [id])
+  candidates     User[]        @relation("SalesCandidates")
+
+  // Coach Relations
+  coachId        String?       // ID of the coach assigned to this student
+  coach          User?         @relation("CoachStudents", fields: [coachId], references: [id])
+  students       User[]        @relation("CoachStudents")
+  tags           String?       // JSON array of strings: ["Priorité", "En suivi"]
+
+  // Formateur Admin Fields
+  nda            String?       // Numero Declaration Activite
+  hourlyRate     Float?        // Cout horaire EUR
+  phone          String?
+  address        String?
+  postalCode     String?
+  city           String?
+  contactPerson  String?       // Contact associe
+  signature      String?       // Base64 string of signature
+  formateurDocuments FormateurDocument[]
+  availabilities     CoachAvailability[]
+  invoices           CoachInvoice[]
+}
+
+model CoachAvailability {
+  id          String   @id @default(uuid())
+  coachId     String
+  coach       User     @relation(fields: [coachId], references: [id])
+  dayOfWeek   Int      // 0-6 (0=Sun, 1=Mon, etc.)
+  startTime   String   // "HH:mm"
+  endTime     String   // "HH:mm"
+  date        DateTime? // Optional: for specific one-off availability
+  isRecurring Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CoachInvoice {
+  id             String   @id @default(uuid())
+  invoiceNumber  String   @unique
+  coachId        String
+  coach          User     @relation(fields: [coachId], references: [id])
+  organizationId String
+  amount         Float
+  hoursCount     Float
+  status         String   @default("DRAFT") // DRAFT, SENT, PAID
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model PedagogicalAction {
+  id             String       @id @default(uuid())
+  type           String       // "FEEDBACK", "ASSIGNMENT", "LEVEL_ADJUST"
+  content        String       // Texte du feedback ou Nom du topic
+  studentId      String
+  student        User         @relation("StudentActions", fields: [studentId], references: [id])
+  coachId        String
+  coach          User         @relation("CoachActions", fields: [coachId], references: [id])
+  createdAt      DateTime     @default(now())
+}
+
+model FormateurDocument {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  type       String   // CV, DIPLOMA, VIGILANCE, NDA_DOC, KBIS, CONTRACT
+  filename   String
+  url        String   // Path to stored file
+  createdAt  DateTime @default(now())
+}
+
+model TrainingProposal {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  
+  baseLevel      String       // Level at start (A1, A2...)
+  targetLevel    String       // Level to reach
+  estimatedHours Int
+  hourlyRate     Float
+  totalCost      Float
+  
+  planModules    String       // JSON array of recommended modules
+  status         String       @default("DRAFT") // DRAFT, SENT, ACCEPTED
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Contract {
+  id             String       @id @default(uuid())
+  startDate      DateTime
+  endDate        DateTime?
+  hourlyRate     Float        @default(0)
+  totalHours     Int          @default(0)
+  status         String       @default("ACTIVE")
+  
+  formateurId    String
+  formateur      User         @relation(fields: [formateurId], references: [id])
+  
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model ExamSession {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  type           String       @default("EXAM") // "EXAM" or "PRACTICE"
+  status         String       @default("PENDING") // Could be an enum if needed
+  score          Int?
+  estimatedLevel String?
+  scoreHash      String?      @unique
+  breakdown      String?      // JSON string of skill breakdown
+  responses      String?      // JSON string of all answers
+  feedback       String?      // Human or AI overall feedback
+  currentQuestionIndex Int?   @default(0)
+  
+  // AI & Integrity fields
+  integrityScore Int          @default(0)
+  integrityStatus String?     @default("VALID")
+  aiTokensUsed   Int          @default(0)
+  aiCostUsd      Float        @default(0)
+  humanGrade     Int?         // For correlation check
+  correlationScore Float?     // Diff between AI and Human
+  aiDebugData    Json?        // Raw AI reasoning for Audit (matches donneesBrutes)
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  completedAt    DateTime?
+  answers        UserAnswer[]
+}
+
+model UserAnswer {
+  id             String      @id @default(uuid())
+  sessionId      String
+  session        ExamSession @relation(fields: [sessionId], references: [id])
+  questionId     String
+  question       Question    @relation(fields: [questionId], references: [id])
+  isCorrect      Boolean
+  selectedOption String? // Optional: store what they picked
+  createdAt      DateTime    @default(now())
+}
+
+model CreditTransaction {
+  id             String          @id @default(uuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  amount         Int
+  type           String
+  createdAt      DateTime        @default(now())
+}
+
+
+model Question {
+  id              String   @id @default(uuid())
+  organizationId  String
+  level           String
+  topic           String
+  content         String   
+  questionText    String   
+  options         String
+  correctAnswer   String   // The value or ID of the correct option
+  explanation     String   
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  answers         UserAnswer[]
+}
+
+model Invitation {
+  id             String       @id @default(uuid())
+  email          String
+  token          String       @unique
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+}
+
+model OfflineProof {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  title          String
+  type           String
+  description    String?
+  proofUrl       String?
+  status         String       @default("PENDING")
+  xpAwarded      Int          @default(0)
+  feedback       String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model AuditLog {
+  id             String       @id @default(uuid())
+  action         String       // CREATE_ORG, DELETE_USER, UPDATE_QUOTA, etc.
+  entityType     String       // USER, ORGANIZATION, SESSION
+  entityId       String
+  payload        String?      // JSON string of changes
+  userId         String?      // Who performed the action
+  user           User?         @relation(fields: [userId], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+}
+
+model Lead {
+  id          String   @id @default(uuid())
+  email       String
+  schoolName  String
+  contactName String?
+  phone       String?
+  status      String   @default("NEW") // NEW, CONTACTED, CONVERTED, LOST
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
