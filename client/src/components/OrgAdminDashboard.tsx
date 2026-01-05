@@ -35,6 +35,7 @@ import {
 import CivicContentManager from './CivicContentManager';
 import QualiopiAuditPanel from './QualiopiAuditPanel';
 import NotificationCenter from './NotificationCenter';
+import OrgAdminProfile from './OrgAdminProfile';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import {
@@ -48,7 +49,7 @@ import {
     Tooltip
 } from 'recharts';
 
-type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres' | 'admin' | 'civic' | 'audit';
+type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres' | 'admin' | 'civic' | 'audit' | 'profil';
 
 export default function OrgAdminDashboard() {
     const { organization, token, logout, user } = useAuth();
@@ -275,6 +276,7 @@ export default function OrgAdminDashboard() {
         { id: 'propositions', label: 'Devis & Plans', icon: FileText },
         { id: 'rapports', label: 'Rapports & Factures', icon: History },
         { id: 'audit', label: 'Audit Qualiopi', icon: ShieldCheck },
+        { id: 'profil', label: 'Mon Profil', icon: Users },
         { id: 'parametres', label: 'Configuration', icon: SettingsIcon },
     ];
 
@@ -468,6 +470,7 @@ export default function OrgAdminDashboard() {
                             {activeTab === 'rapports' && <ReportsBilling organization={organization} token={token} transactions={transactions} />}
                             {activeTab === 'civic' && <CivicContentManager />}
                             {activeTab === 'audit' && <QualiopiAuditPanel orgId={organization?.id || ''} token={token || ''} />}
+                            {activeTab === 'profil' && <OrgAdminProfile />}
                             {activeTab === 'parametres' && (
                                 <Settings
                                     settings={settings}
