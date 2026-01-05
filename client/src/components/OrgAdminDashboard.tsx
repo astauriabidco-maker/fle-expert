@@ -30,13 +30,28 @@ import {
     MoreHorizontal,
     TrendingUp,
     ArrowUpRight,
-    Globe
+    Globe,
+    MessageCircle,
+    Calendar,
+    BarChart3,
+    Target,
+    Award,
+    CreditCard
 } from 'lucide-react';
 import CivicContentManager from './CivicContentManager';
 import QualiopiAuditPanel from './QualiopiAuditPanel';
 import NotificationCenter from './NotificationCenter';
 import OrgAdminProfile from './OrgAdminProfile';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// Coach & Candidate components for multi-role access
+import MessagingPanel from './MessagingPanel';
+import CoachCalendar from './CoachCalendar';
+import CoachStatsPanel from './CoachStatsPanel';
+import PersonalizedPath from './PersonalizedPath';
+import { Portfolio } from './Portfolio';
+import CivicPath from './CivicPath';
+import { CandidateBilling } from './CandidateBilling';
 
 import {
     ResponsiveContainer,
@@ -49,7 +64,7 @@ import {
     Tooltip
 } from 'recharts';
 
-type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres' | 'admin' | 'civic' | 'audit' | 'profil';
+type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres' | 'admin' | 'civic' | 'audit' | 'profil' | 'messages' | 'coach-calendar' | 'coach-stats' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling';
 
 export default function OrgAdminDashboard() {
     const { organization, token, logout, user } = useAuth();
@@ -271,11 +286,24 @@ export default function OrgAdminDashboard() {
         { id: 'equipe', label: 'Gestion d\'Équipe', icon: Users },
         { id: 'cohorte', label: 'Candidats', icon: GraduationCap },
         { id: 'bibliotheque', label: 'Bibliothèque', icon: Library },
-        { id: 'civic', label: 'Citoyenneté', icon: Globe },
+        { id: 'civic', label: 'Gestion Citoyenneté', icon: Globe },
         { id: 'validations', label: 'Validations', icon: CheckCircle2, count: proofs.length },
         { id: 'propositions', label: 'Devis & Plans', icon: FileText },
         { id: 'rapports', label: 'Rapports & Factures', icon: History },
         { id: 'audit', label: 'Audit Qualiopi', icon: ShieldCheck },
+        // Separator - Coach Tools
+        { id: 'separator-coach', label: '── Outils Coach ──', icon: null, separator: true },
+        { id: 'messages', label: 'Messagerie', icon: MessageCircle },
+        { id: 'coach-calendar', label: 'Calendrier', icon: Calendar },
+        { id: 'coach-stats', label: 'Stats Coaching', icon: BarChart3 },
+        // Separator - Learner Mode
+        { id: 'separator-learner', label: '── Mode Apprenant ──', icon: null, separator: true },
+        { id: 'mypath', label: 'Mon Parcours', icon: Target },
+        { id: 'myportfolio', label: 'Mon Portfolio', icon: Award },
+        { id: 'mycivic', label: 'Citoyenneté', icon: Globe },
+        { id: 'mybilling', label: 'Facturation', icon: CreditCard },
+        // Separator - Settings
+        { id: 'separator-settings', label: '──────', icon: null, separator: true },
         { id: 'profil', label: 'Mon Profil', icon: Users },
         { id: 'parametres', label: 'Configuration', icon: SettingsIcon },
     ];
@@ -323,24 +351,30 @@ export default function OrgAdminDashboard() {
                 {/* Navigation */}
                 <nav className="flex-1 py-6 px-4 space-y-2 overflow-y-auto">
                     {menuItems.map((item: any) => (
-                        <button
-                            key={item.id}
-                            onClick={() => setActiveTab(item.id)}
-                            className={`w-full flex items-center px-4 py-3 rounded-xl transition-all group relative ${activeTab === item.id
-                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-                                }`}
-                        >
-                            <item.icon className={`w-5 h-5 flex-shrink-0 ${activeTab === item.id ? 'text-white' : 'group-hover:scale-110 transition-transform'}`} />
-                            {isSidebarOpen && (
-                                <span className="ml-4 font-bold text-sm">{item.label}</span>
-                            )}
-                            {item.count > 0 && (
-                                <span className={`absolute ${isSidebarOpen ? 'right-4' : 'right-2 top-2'} min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full bg-rose-500 text-[10px] font-black border-2 border-[#1E293B]`}>
-                                    {item.count}
-                                </span>
-                            )}
-                        </button>
+                        item.separator ? (
+                            <div key={item.id} className={`py-2 ${isSidebarOpen ? '' : 'hidden'}`}>
+                                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest px-4">{item.label}</span>
+                            </div>
+                        ) : (
+                            <button
+                                key={item.id}
+                                onClick={() => setActiveTab(item.id)}
+                                className={`w-full flex items-center px-4 py-3 rounded-xl transition-all group relative ${activeTab === item.id
+                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                                    }`}
+                            >
+                                {item.icon && <item.icon className={`w-5 h-5 flex-shrink-0 ${activeTab === item.id ? 'text-white' : 'group-hover:scale-110 transition-transform'}`} />}
+                                {isSidebarOpen && (
+                                    <span className="ml-4 font-bold text-sm">{item.label}</span>
+                                )}
+                                {item.count > 0 && (
+                                    <span className={`absolute ${isSidebarOpen ? 'right-4' : 'right-2 top-2'} min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full bg-rose-500 text-[10px] font-black border-2 border-[#1E293B]`}>
+                                        {item.count}
+                                    </span>
+                                )}
+                            </button>
+                        )
                     ))}
                 </nav>
 
@@ -471,6 +505,79 @@ export default function OrgAdminDashboard() {
                             {activeTab === 'civic' && <CivicContentManager />}
                             {activeTab === 'audit' && <QualiopiAuditPanel orgId={organization?.id || ''} token={token || ''} />}
                             {activeTab === 'profil' && <OrgAdminProfile />}
+
+                            {/* Coach Tools */}
+                            {activeTab === 'messages' && <MessagingPanel />}
+                            {activeTab === 'coach-calendar' && <CoachCalendar />}
+                            {activeTab === 'coach-stats' && <CoachStatsPanel stats={{
+                                totalStudents: students.length,
+                                activeStudents: students.filter((s: any) => s.lastActivity && new Date(s.lastActivity) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length,
+                                averageScore: 0,
+                                scoreEvolution: 0,
+                                totalSessions: 0,
+                                hoursThisMonth: 0,
+                                feedbacksSent: 0,
+                                successRate: 0
+                            }} />}
+
+                            {/* Learner Mode */}
+                            {activeTab === 'mypath' && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+                                            <Target size={20} className="text-emerald-400" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-black text-white">Mon Parcours Personnel</h2>
+                                            <p className="text-sm text-slate-400">Suivez votre propre progression FLE</p>
+                                        </div>
+                                    </div>
+                                    <PersonalizedPath />
+                                </div>
+                            )}
+                            {activeTab === 'myportfolio' && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center">
+                                            <Award size={20} className="text-indigo-400" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-black text-white">Mon Portfolio</h2>
+                                            <p className="text-sm text-slate-400">Vos preuves d'apprentissage</p>
+                                        </div>
+                                    </div>
+                                    <Portfolio organizationId={organization?.id || ''} userId={user?.id || ''} token={token || ''} />
+                                </div>
+                            )}
+                            {activeTab === 'mycivic' && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                                            <Globe size={20} className="text-blue-400" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-black text-white">Parcours Citoyenneté</h2>
+                                            <p className="text-sm text-slate-400">Préparez-vous aux tests de citoyenneté</p>
+                                        </div>
+                                    </div>
+                                    <CivicPath />
+                                </div>
+                            )}
+                            {activeTab === 'mybilling' && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center">
+                                            <CreditCard size={20} className="text-amber-400" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-black text-white">Ma Facturation</h2>
+                                            <p className="text-sm text-slate-400">Gérez vos crédits et paiements</p>
+                                        </div>
+                                    </div>
+                                    <CandidateBilling />
+                                </div>
+                            )}
+
                             {activeTab === 'parametres' && (
                                 <Settings
                                     settings={settings}
