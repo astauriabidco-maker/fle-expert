@@ -26,6 +26,7 @@ import CandidatePortfolio from './CandidatePortfolio';
 import { CandidateCalendar } from './CandidateCalendar';
 import CandidateProfile from './CandidateProfile';
 import { ErrorBoundary } from './ErrorBoundary';
+import UserMenu from './UserMenu';
 
 type DashboardTab = 'overview' | 'path' | 'portfolio' | 'calendar' | 'profile';
 
@@ -38,7 +39,7 @@ const INITIAL_SKILLS = [
 ];
 
 const CandidateDashboard: React.FC = () => {
-    const { user, organization, token, logout } = useAuth();
+    const { user, organization, token } = useAuth();
     const [history, setHistory] = React.useState<any[]>([]);
     const [skillsData, setSkillsData] = React.useState(INITIAL_SKILLS);
     const [isLoading, setIsLoading] = React.useState(true);
@@ -177,13 +178,7 @@ const CandidateDashboard: React.FC = () => {
                                     className="h-14 w-auto object-contain opacity-90"
                                 />
                             )}
-                            <button
-                                onClick={logout}
-                                className="text-slate-400 hover:text-red-500 transition-colors p-2"
-                                title="Se déconnecter"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-out"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>
-                            </button>
+                            <UserMenu />
                         </div>
                     </header>
 
@@ -457,9 +452,9 @@ const CandidateDashboard: React.FC = () => {
                     )}
 
                     {activeTab === 'calendar' && (
-                        <div className="p-10 bg-blue-100 text-blue-900 font-bold text-2xl border-4 border-blue-500">
-                            TEST AFFICHAGE CALENDRIER
-                        </div>
+                        <ErrorBoundary>
+                            <CandidateCalendar />
+                        </ErrorBoundary>
                     )}
 
                     {activeTab === 'profile' && (

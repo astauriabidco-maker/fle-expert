@@ -12,6 +12,7 @@ import {
     Target, Zap, Lock, Award, Calendar, Clock, PenTool, CreditCard,
     Plus, Trash2, CalendarPlus
 } from 'lucide-react';
+import UserMenu from './UserMenu';
 
 // Types
 const API_URL = 'http://localhost:3333';
@@ -583,13 +584,14 @@ const CoachDashboard: React.FC = () => {
                         </h1>
                         <p className="text-slate-400 font-medium mt-1">{organization?.name}</p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 items-center">
                         <button onClick={() => setIsAssignModalOpen(true)} className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 text-sm">
                             <UserPlus size={16} /> Ajouter
                         </button>
                         <button onClick={() => navigate('/content-lab')} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 text-sm">
                             <BookOpen size={16} /> Content Lab
                         </button>
+                        <UserMenu />
                     </div>
                 </header>
 
