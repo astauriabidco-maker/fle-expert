@@ -27,7 +27,7 @@ services:
     depends_on:
       - db
     command: >
-      sh -c "npx prisma migrate deploy && npm run start:prod"
+      sh -c "npx prisma db push --skip-generate && npm run start:prod"
     networks:
       - fle-expert
 
