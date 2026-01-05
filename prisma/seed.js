@@ -1,7 +1,17 @@
 const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const prisma = new PrismaClient();
+
+// Same hashing function as SecurityService
+function hashWithSalt(data, salt) {
+    const usedSalt = salt || crypto.randomBytes(16).toString('hex');
+    const hash = crypto
+        .createHmac('sha256', usedSalt)
+        .update(data)
+        .digest('hex');
+    return { hash, salt: usedSalt };
+}
 
 async function main() {
     console.log('🌱 Starting database seed...');
@@ -41,8 +51,10 @@ async function main() {
     });
     console.log('✅ Organization created:', org.name);
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash('password123', 10);
+    // Hash password using same method as backend SecurityService
+    const { hash, salt } = hashWithSalt('password123');
+    const hashedPassword = `${salt}:${hash}`;
+    console.log('🔐 Password hashed with salt:', salt.substring(0, 8) + '...');
 
     // Create Super Admin
     const superAdmin = await prisma.user.create({
