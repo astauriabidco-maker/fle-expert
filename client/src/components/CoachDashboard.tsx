@@ -19,8 +19,14 @@ import CoachStatsPanel from './CoachStatsPanel';
 import MessagingPanel from './MessagingPanel';
 import { FEEDBACK_TEMPLATES } from '../data/feedbackTemplates';
 
+// Candidate components for learner mode
+import PersonalizedPath from './PersonalizedPath';
+import { Portfolio } from './Portfolio';
+import CivicPath from './CivicPath';
+import { CandidateBilling } from './CandidateBilling';
+
 // Types
-const API_URL = 'http://localhost:3333';
+const API_URL = '/api';
 
 interface Student {
     id: string;
@@ -68,7 +74,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 }
 
 const CoachDashboard: React.FC = () => {
-    const { organization, token } = useAuth();
+    const { organization, token, user } = useAuth();
     const navigate = useNavigate();
 
     // Data state
@@ -80,7 +86,7 @@ const CoachDashboard: React.FC = () => {
 
 
     // UI state
-    const [activeTab, setActiveTab] = useState<'students' | 'corrections' | 'validations' | 'profile' | 'stats' | 'calendar' | 'messages' | 'civic'>('students');
+    const [activeTab, setActiveTab] = useState<'students' | 'corrections' | 'validations' | 'profile' | 'stats' | 'calendar' | 'messages' | 'civic' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling'>('students');
     const [myStats, setMyStats] = useState<any>(null);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
     const [detailedStudent, setDetailedStudent] = useState<any>(null);
@@ -673,7 +679,18 @@ const CoachDashboard: React.FC = () => {
                     <TabButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} label="Calendrier" />
                     <TabButton active={activeTab === 'messages'} onClick={() => setActiveTab('messages')} label="Messages" badge={unreadMessages > 0} />
                     <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} label="Mon Profil" icon={PenTool} />
-                    <TabButton active={activeTab === 'civic'} onClick={() => setActiveTab('civic')} label="Citoyenneté" icon={Globe} />
+                    <TabButton active={activeTab === 'civic'} onClick={() => setActiveTab('civic')} label="Gestion Civique" icon={Globe} />
+
+                    {/* Separator */}
+                    <div className="hidden md:flex items-center px-2">
+                        <div className="w-px h-6 bg-slate-700"></div>
+                    </div>
+
+                    {/* Learner Mode Tabs */}
+                    <TabButton active={activeTab === 'mypath'} onClick={() => setActiveTab('mypath')} label="Mon Parcours" icon={Target} />
+                    <TabButton active={activeTab === 'myportfolio'} onClick={() => setActiveTab('myportfolio')} label="Mon Portfolio" icon={Award} />
+                    <TabButton active={activeTab === 'mycivic'} onClick={() => setActiveTab('mycivic')} label="Citoyenneté" icon={Globe} />
+                    <TabButton active={activeTab === 'mybilling'} onClick={() => setActiveTab('mybilling')} label="Facturation" icon={CreditCard} />
                 </div>
 
                 {activeTab === 'students' ? (
@@ -1431,6 +1448,58 @@ const CoachDashboard: React.FC = () => {
                 ) : activeTab === 'civic' ? (
                     <div className="bg-[#1E293B]/50 rounded-2xl border border-slate-800 p-6">
                         <CivicContentManager />
+                    </div>
+                ) : activeTab === 'mypath' ? (
+                    <div className="bg-[#1E293B]/50 rounded-2xl border border-slate-800 p-6">
+                        <div className="mb-4 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+                                <Target size={20} className="text-emerald-400" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black text-white">Mon Parcours Personnel</h2>
+                                <p className="text-sm text-slate-400">Suivez votre propre progression FLE</p>
+                            </div>
+                        </div>
+                        <PersonalizedPath />
+                    </div>
+                ) : activeTab === 'myportfolio' ? (
+                    <div className="bg-[#1E293B]/50 rounded-2xl border border-slate-800 p-6">
+                        <div className="mb-4 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center">
+                                <Award size={20} className="text-indigo-400" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black text-white">Mon Portfolio</h2>
+                                <p className="text-sm text-slate-400">Vos preuves d'apprentissage</p>
+                            </div>
+                        </div>
+                        <Portfolio organizationId={organization?.id || ''} userId={user?.id || ''} token={token || ''} />
+                    </div>
+                ) : activeTab === 'mycivic' ? (
+                    <div className="bg-[#1E293B]/50 rounded-2xl border border-slate-800 p-6">
+                        <div className="mb-4 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                                <Globe size={20} className="text-blue-400" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black text-white">Parcours Citoyenneté</h2>
+                                <p className="text-sm text-slate-400">Préparez-vous aux tests de citoyenneté</p>
+                            </div>
+                        </div>
+                        <CivicPath />
+                    </div>
+                ) : activeTab === 'mybilling' ? (
+                    <div className="bg-[#1E293B]/50 rounded-2xl border border-slate-800 p-6">
+                        <div className="mb-4 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center">
+                                <CreditCard size={20} className="text-amber-400" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black text-white">Ma Facturation</h2>
+                                <p className="text-sm text-slate-400">Gérez vos crédits et paiements</p>
+                            </div>
+                        </div>
+                        <CandidateBilling />
                     </div>
                 ) : null}
             </div>
