@@ -46,7 +46,7 @@ const CandidatePortfolio: React.FC = () => {
     const fetchProofs = async () => {
         if (!token || !navigator.onLine) return; // Don't fetch if offline
         try {
-            const res = await fetch('http://localhost:3333/proofs/mine', {
+            const res = await fetch('/api/proofs/mine', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) setProofs(await res.json());
@@ -64,7 +64,7 @@ const CandidatePortfolio: React.FC = () => {
 
         for (const proof of pending) {
             try {
-                const res = await fetch('http://localhost:3333/proofs', {
+                const res = await fetch('/api/proofs', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -130,7 +130,7 @@ const CandidatePortfolio: React.FC = () => {
 
         // Online Save
         try {
-            const res = await fetch('http://localhost:3333/proofs', {
+            const res = await fetch('/api/proofs', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

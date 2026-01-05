@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { MessageCircle, Send, X, Search, User, ChevronLeft } from 'lucide-react';
 
-const API_URL = 'http://localhost:3333';
+const API_URL = '/api';
 
 interface Conversation {
     id: string;

@@ -66,16 +66,16 @@ const CandidateDashboard: React.FC = () => {
             setIsLoading(true);
             try {
                 const [historyRes, statsRes, leaderboardRes, pathRes] = await Promise.all([
-                    fetch(`http://localhost:3333/exam/history/${user.id}`, {
+                    fetch(`/api/exam/history/${user.id}`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     }),
-                    fetch(`http://localhost:3333/exam/stats/${user.id}`, {
+                    fetch(`/api/exam/stats/${user.id}`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     }),
-                    fetch(`http://localhost:3333/analytics/leaderboard/${organization?.id}`, {
+                    fetch(`/api/analytics/leaderboard/${organization?.id}`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     }),
-                    fetch(`http://localhost:3333/analytics/user/path/${user.id}`, {
+                    fetch(`/api/analytics/user/path/${user.id}`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     })
                 ]);
@@ -101,10 +101,10 @@ const CandidateDashboard: React.FC = () => {
 
                 // Fetch Gamification Data
                 const [badgesRes, leaderboardResReal] = await Promise.all([
-                    fetch(`http://localhost:3333/gamification/badges`, {
+                    fetch(`/api/gamification/badges`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     }),
-                    fetch(`http://localhost:3333/gamification/leaderboard`, {
+                    fetch(`/api/gamification/leaderboard`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     })
                 ]);
@@ -113,7 +113,7 @@ const CandidateDashboard: React.FC = () => {
                 if (leaderboardResReal.ok) setLeaderboard(await leaderboardResReal.json());
 
                 // Fetch AI Diagnostic
-                const aiRes = await fetch(`http://localhost:3333/ai/diagnostic`, {
+                const aiRes = await fetch(`/api/ai/diagnostic`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (aiRes.ok) setAiDiagnostic(await aiRes.json());
@@ -132,7 +132,7 @@ const CandidateDashboard: React.FC = () => {
 
     const handleDownloadCertificate = async (sessionId: string) => {
         try {
-            const response = await fetch(`http://localhost:3333/certificate/download/${sessionId}`, {
+            const response = await fetch(`/api/certificate/download/${sessionId}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`
