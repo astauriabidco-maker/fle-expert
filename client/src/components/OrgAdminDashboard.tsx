@@ -94,7 +94,9 @@ export default function OrgAdminDashboard() {
     const [generating, setGenerating] = useState(false);
     const [showGenModal, setShowGenModal] = useState(false);
     const [showRechargeModal, setShowRechargeModal] = useState(false);
-    const [genConfig, setGenConfig] = useState({ topic: 'Grammaire', level: 'B1', count: 5 });
+    const [genConfig, setGenConfig] = useState({ topic: 'Grammaire', level: 'B1', count: 5, sector: 'Général' });
+    const [sectors, setSectors] = useState(['Général', 'Médico-Social', 'BTP', 'Restauration', 'Tourisme', 'Informatique', 'Nettoyage']);
+    const [newSector, setNewSector] = useState('');
 
     const filteredStudents = students.filter(s =>
     (s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -254,7 +256,7 @@ export default function OrgAdminDashboard() {
     const handleGenerate = async () => {
         setGenerating(true);
         try {
-            const res = await fetch('http://localhost:3333/content-lab/generate', {
+            const res = await fetch('/api/content-lab/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -264,7 +266,8 @@ export default function OrgAdminDashboard() {
                     orgId: organization?.id,
                     topic: genConfig.topic,
                     level: genConfig.level,
-                    count: genConfig.count
+                    count: genConfig.count,
+                    sector: genConfig.sector
                 })
             });
 
@@ -687,6 +690,44 @@ export default function OrgAdminDashboard() {
                                         </optgroup>
                                     </select>
                                 </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Secteur Professionnel</label>
+                                    <div className="flex gap-2">
+                                        <select
+                                            className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-xl font-bold outline-none focus:ring-2 ring-violet-500 text-slate-900 dark:text-white"
+                                            value={genConfig.sector || 'Général'}
+                                            onChange={e => setGenConfig({ ...genConfig, sector: e.target.value })}
+                                        >
+                                            {sectors.map(s => <option key={s} value={s}>{s}</option>)}
+                                            <option value="custom">➕ Créer un secteur...</option>
+                                        </select>
+                                    </div>
+                                    {genConfig.sector === 'custom' && (
+                                        <div className="flex gap-2 mt-2 animate-in fade-in slide-in-from-top-1">
+                                            <input
+                                                type="text"
+                                                placeholder="Secteur (ex: Agriculture)"
+                                                value={newSector}
+                                                onChange={(e) => setNewSector(e.target.value)}
+                                                className="flex-1 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl font-bold outline-none border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                                            />
+                                            <button
+                                                onClick={() => {
+                                                    if (newSector) {
+                                                        setSectors([...sectors, newSector]);
+                                                        setGenConfig({ ...genConfig, sector: newSector });
+                                                        setNewSector('');
+                                                    }
+                                                }}
+                                                className="px-4 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold transition-colors"
+                                            >
+                                                Ajouter
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Niveau</label>
@@ -1376,6 +1417,11 @@ function Bibliotheque({ questions, toggleQuestion, setShowGenModal }: any) {
                             <div className="flex items-center justify-between mb-4">
                                 <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-black rounded-full uppercase tracking-widest">
                                     {q.topic}
+                                    {q.sector && q.sector !== 'Général' && (
+                                        <span className="ml-2 text-violet-400 border-l border-blue-500/20 pl-2">
+                                            {q.sector}
+                                        </span>
+                                    )}
                                 </span>
                                 <button
                                     onClick={() => toggleQuestion(q.id, q.isActive)}
