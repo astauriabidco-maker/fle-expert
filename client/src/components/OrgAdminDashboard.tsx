@@ -52,6 +52,7 @@ import PersonalizedPath from './PersonalizedPath';
 import { Portfolio } from './Portfolio';
 import CivicPath from './CivicPath';
 import { CandidateBilling } from './CandidateBilling';
+import { BusinessPerformance } from './BusinessPerformance';
 
 import {
     ResponsiveContainer,
@@ -64,13 +65,15 @@ import {
     Tooltip
 } from 'recharts';
 
-type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres' | 'admin' | 'civic' | 'audit' | 'profil' | 'messages' | 'coach-calendar' | 'coach-stats' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling';
+type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres' | 'admin' | 'civic' | 'audit' | 'profil' | 'messages' | 'coach-calendar' | 'coach-stats' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling' | 'business';
 
 export default function OrgAdminDashboard() {
     const { organization, token, logout, user } = useAuth();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<TabType>('dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    // Impersonation state
+    const [impersonatedUserId, setImpersonatedUserId] = useState<string>('');
     const [students, setStudents] = useState<any[]>([]);
     const [questions, setQuestions] = useState<any[]>([]);
     const [proofs, setProofs] = useState<any[]>([]); // New state
@@ -289,6 +292,7 @@ export default function OrgAdminDashboard() {
         { id: 'civic', label: 'Gestion Citoyenneté', icon: Globe },
         { id: 'validations', label: 'Validations', icon: CheckCircle2, count: proofs.length },
         { id: 'propositions', label: 'Devis & Plans', icon: FileText },
+        { id: 'business', label: 'Rentabilité & Business', icon: TrendingUp },
         { id: 'rapports', label: 'Rapports & Factures', icon: History },
         { id: 'audit', label: 'Audit Qualiopi', icon: ShieldCheck },
         // Separator - Coach Tools
@@ -520,6 +524,31 @@ export default function OrgAdminDashboard() {
                                 successRate: 0
                             }} />}
 
+                            {activeTab === 'business' && <BusinessPerformance students={students} organization={organization} />}
+
+                            {/* Learner Mode Selector */}
+                            {(activeTab === 'mypath' || activeTab === 'myportfolio' || activeTab === 'mycivic' || activeTab === 'mybilling') && (
+                                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 mb-6 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-blue-500/10 rounded-lg">
+                                            <Eye size={20} className="text-blue-400" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-white">Mode "Voir en tant que"</p>
+                                            <p className="text-xs text-slate-400">Visualisez l'interface comme un de vos étudiants</p>
+                                        </div>
+                                    </div>
+                                    <select
+                                        value={impersonatedUserId}
+                                        onChange={(e) => setImpersonatedUserId(e.target.value)}
+                                        className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 ring-blue-500 outline-none w-64"
+                                    >
+                                        <option value="">-- Moi-même (Admin) --</option>
+                                        {students.map(s => <option key={s.id} value={s.id}>{s.name} ({s.currentLevel})</option>)}
+                                    </select>
+                                </div>
+                            )}
+
                             {/* Learner Mode */}
                             {activeTab === 'mypath' && (
                                 <div className="space-y-4">
@@ -532,7 +561,7 @@ export default function OrgAdminDashboard() {
                                             <p className="text-sm text-slate-400">Suivez votre propre progression FLE</p>
                                         </div>
                                     </div>
-                                    <PersonalizedPath />
+                                    <PersonalizedPath userId={impersonatedUserId || undefined} />
                                 </div>
                             )}
                             {activeTab === 'myportfolio' && (
@@ -546,7 +575,7 @@ export default function OrgAdminDashboard() {
                                             <p className="text-sm text-slate-400">Vos preuves d'apprentissage</p>
                                         </div>
                                     </div>
-                                    <Portfolio organizationId={organization?.id || ''} userId={user?.id || ''} token={token || ''} />
+                                    <Portfolio organizationId={organization?.id || ''} userId={impersonatedUserId || user?.id || ''} token={token || ''} />
                                 </div>
                             )}
                             {activeTab === 'mycivic' && (
@@ -574,7 +603,7 @@ export default function OrgAdminDashboard() {
                                             <p className="text-sm text-slate-400">Gérez vos crédits et paiements</p>
                                         </div>
                                     </div>
-                                    <CandidateBilling />
+                                    <CandidateBilling userId={impersonatedUserId || undefined} />
                                 </div>
                             )}
 

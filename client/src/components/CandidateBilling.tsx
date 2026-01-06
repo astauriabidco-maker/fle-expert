@@ -3,7 +3,11 @@ import React from 'react';
 import { CreditCard, Download, FileText, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-export const CandidateBilling = () => {
+interface CandidateBillingProps {
+    userId?: string;
+}
+
+export const CandidateBilling: React.FC<CandidateBillingProps> = ({ userId }) => {
     const { token, organization } = useAuth();
     const [invoices, setInvoices] = React.useState<any[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
@@ -18,7 +22,7 @@ export const CandidateBilling = () => {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ orgId: organization.id })
+                    body: JSON.stringify({ orgId: organization.id, userId })
                 });
                 if (res.ok) {
                     setInvoices(await res.json());

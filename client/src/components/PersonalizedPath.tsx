@@ -30,14 +30,20 @@ interface PathData {
     badges: { id: string, name: string, earned: boolean }[];
 }
 
-export default function PersonalizedPath() {
+interface PersonalizedPathProps {
+    userId?: string;
+}
+
+export default function PersonalizedPath({ userId }: PersonalizedPathProps) {
     const { user, token } = useAuth();
     const [data, setData] = useState<PathData | null>(null);
     const [loading, setLoading] = useState(true);
 
+    const targetUserId = userId || user?.id;
+
     useEffect(() => {
-        if (!user?.id || !token) return;
-        fetch(`http://localhost:3333/analytics/user/path/${user.id}`, {
+        if (!targetUserId || !token) return;
+        fetch(`/api/analytics/user/path/${targetUserId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
             .then(res => res.json())
