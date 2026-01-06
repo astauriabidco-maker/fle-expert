@@ -37,9 +37,10 @@ export class AiService {
         topic: string,
         level: string,
         count: number = 5,
+        sector: string = 'Général',
         preferredProvider?: 'openai' | 'gemini'
     ): Promise<QuestionGenerated[]> {
-        const prompt = this.buildPrompt(topic, level, count);
+        const prompt = this.buildPrompt(topic, level, count, sector);
 
         // Try preferred provider first
         if (preferredProvider === 'gemini' && this.gemini) {
@@ -62,13 +63,14 @@ export class AiService {
         return this.generateMockQuestions(topic, level, count);
     }
 
-    private buildPrompt(topic: string, level: string, count: number): string {
+    private buildPrompt(topic: string, level: string, count: number, sector: string): string {
         const levelGuidelines = this.getLevelGuidelines(level);
+        const sectorContext = sector && sector !== 'Général' ? `\nCONTEXTE SECTORIEL: ${sector} (Adapte le vocabulaire et les situations à ce milieu professionnel)` : '';
 
         return `Tu es un expert en français langue étrangère (FLE) spécialisé dans la préparation aux examens TEF et TCF.
 Génère exactement ${count} questions à choix multiples (QCM) pour des apprenants de niveau ${level} (CECRL).
 
-Sujet: ${topic}
+Sujet: ${topic}${sectorContext}
 
 ## DIRECTIVES STRICTES POUR LE NIVEAU ${level}
 

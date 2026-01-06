@@ -13,14 +13,15 @@ export class ContentLabController {
     @Post('generate')
     async generateQuestions(
         @Request() req: any,
-        @Body() body: { topic: string; level: string; count: number; orgId?: string }
+        @Body() body: { topic: string; level: string; count: number; orgId?: string; sector?: string }
     ) {
         const orgId = body.orgId || req.user.organizationId;
         return this.contentLabService.generateAndSaveQuestions(
             orgId,
             body.topic,
             body.level,
-            body.count || 5
+            body.count || 5,
+            body.sector
         );
     }
 

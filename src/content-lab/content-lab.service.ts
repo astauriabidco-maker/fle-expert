@@ -15,13 +15,14 @@ export class ContentLabService {
         orgId: string,
         topic: string,
         level: string,
-        count: number = 5
+        count: number = 5,
+        sector: string = 'Général'
     ) {
-        this.logger.log(`Generating ${count} questions for org ${orgId}, topic: ${topic}, level: ${level}`);
+        this.logger.log(`Generating ${count} questions for org ${orgId}, topic: ${topic}, level: ${level}, sector: ${sector}`);
 
         try {
             // Generate questions using AI
-            const generatedQuestions = await this.aiService.generateQuestions(topic, level, count);
+            const generatedQuestions = await this.aiService.generateQuestions(topic, level, count, sector);
 
             // Save each question to the database
             const savedQuestions = await Promise.all(
@@ -36,7 +37,7 @@ export class ContentLabService {
                             options: JSON.stringify(q.options),
                             correctAnswer: q.correctAnswer,
                             explanation: q.explanation,
-                            isActive: true
+                            isActive: false // Draft by default for review
                         }
                     });
                 })

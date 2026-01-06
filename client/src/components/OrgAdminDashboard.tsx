@@ -36,7 +36,11 @@ import {
     BarChart3,
     Target,
     Award,
-    CreditCard
+    CreditCard,
+    Plus,
+    Check,
+    Edit2,
+    Trash2
 } from 'lucide-react';
 import CivicContentManager from './CivicContentManager';
 import QualiopiAuditPanel from './QualiopiAuditPanel';
@@ -1395,53 +1399,104 @@ function Proposals({ proposals, token }: any) {
     );
 }
 function Bibliotheque({ questions, toggleQuestion, setShowGenModal }: any) {
+    const [view, setView] = useState<'active' | 'pending'>('active');
+
+    const displayedQuestions = questions.filter((q: any) =>
+        view === 'active' ? q.isActive : !q.isActive
+    );
+
     return (
         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 overflow-hidden">
-            <div className="p-8 border-b dark:border-slate-100/5 flex items-center justify-between">
-                <div>
-                    <h2 className="text-xl font-black mb-2 text-white">Bibliothèque du Centre</h2>
-                    <p className="text-slate-500 text-sm">Gérez les exercices générés par l'IA pour vos élèves.</p>
+            <div className="p-8 border-b dark:border-slate-100/5">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                    <div>
+                        <h2 className="text-xl font-black mb-2 text-white">Bibliothèque du Centre</h2>
+                        <p className="text-slate-500 text-sm">Gérez et validez le contenu pédagogique.</p>
+                    </div>
+                    <div className="flex gap-3">
+                        <button
+                            className="flex items-center gap-2 bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-slate-700 transition-colors"
+                        >
+                            <Plus size={18} />
+                            Ajouter
+                        </button>
+                        <button
+                            onClick={() => setShowGenModal(true)}
+                            className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-500/20 hover:scale-105 transition-transform"
+                        >
+                            <Sparkles size={18} className="text-yellow-300" />
+                            Générer IA
+                        </button>
+                    </div>
                 </div>
-                <button
-                    onClick={() => setShowGenModal(true)}
-                    className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-500/20 hover:scale-105 transition-transform"
-                >
-                    <Sparkles size={18} className="text-yellow-300" />
-                    Générer avec IA
-                </button>
+
+                <div className="flex gap-6 border-b border-slate-800/50">
+                    <button
+                        onClick={() => setView('active')}
+                        className={`pb-4 px-2 font-bold text-sm transition-all border-b-2 ${view === 'active' ? 'text-blue-400 border-blue-400' : 'text-slate-500 border-transparent hover:text-slate-300'}`}
+                    >
+                        <span className="mr-2">📚</span>Questions Publiées ({questions.filter((q: any) => q.isActive).length})
+                    </button>
+                    <button
+                        onClick={() => setView('pending')}
+                        className={`pb-4 px-2 font-bold text-sm transition-all border-b-2 ${view === 'pending' ? 'text-amber-400 border-amber-400' : 'text-slate-500 border-transparent hover:text-slate-300'}`}
+                    >
+                        <span className="mr-2">⚠️</span>À Valider ({questions.filter((q: any) => !q.isActive).length})
+                    </button>
+                </div>
             </div>
+
             <div className="p-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {questions.map((q: any) => (
-                        <div key={q.id} className={`p-6 rounded-3xl border transition-all ${q.isActive ? 'bg-white dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 shadow-sm' : 'bg-slate-50 dark:bg-slate-800/10 border-transparent opacity-60'}`}>
+                    {displayedQuestions.map((q: any) => (
+                        <div key={q.id} className={`p-6 rounded-3xl border transition-all ${q.isActive ? 'bg-white dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 shadow-sm' : 'bg-amber-500/5 border-amber-500/20'}`}>
                             <div className="flex items-center justify-between mb-4">
-                                <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-black rounded-full uppercase tracking-widest">
+                                <span className={`px-3 py-1 text-[10px] font-black rounded-full uppercase tracking-widest ${q.isActive ? 'bg-blue-500/10 text-blue-400' : 'bg-amber-500/10 text-amber-400'}`}>
                                     {q.topic}
                                     {q.sector && q.sector !== 'Général' && (
-                                        <span className="ml-2 text-violet-400 border-l border-blue-500/20 pl-2">
+                                        <span className={`ml-2 pl-2 border-l ${q.isActive ? 'text-violet-400 border-blue-500/20' : 'text-amber-200 border-amber-500/20'}`}>
                                             {q.sector}
                                         </span>
                                     )}
                                 </span>
-                                <button
-                                    onClick={() => toggleQuestion(q.id, q.isActive)}
-                                    className={`p-2 rounded-xl transition-colors ${q.isActive ? 'text-slate-400 hover:text-rose-500' : 'text-emerald-500 hover:bg-emerald-500/10'}`}
-                                >
-                                    {q.isActive ? <Eye size={18} /> : <EyeOff size={18} />}
-                                </button>
+                                <div className="flex gap-1">
+                                    {view === 'pending' ? (
+                                        <>
+                                            <button onClick={() => toggleQuestion(q.id, false)} className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors" title="Valider">
+                                                <Check size={16} />
+                                            </button>
+                                            <button className="p-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-colors" title="Rejeter">
+                                                <Trash2 size={16} />
+                                            </button>
+                                            <button className="p-2 rounded-xl bg-slate-700 text-slate-400 hover:text-white transition-colors" title="Éditer">
+                                                <Edit2 size={16} />
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button
+                                            onClick={() => toggleQuestion(q.id, true)}
+                                            className="p-2 rounded-xl text-slate-400 hover:text-rose-500 transition-colors"
+                                            title="Masquer / Retirer"
+                                        >
+                                            <EyeOff size={18} />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                            <h4 className="font-bold text-sm mb-2 text-white line-clamp-2">{q.questionText}</h4>
+                            <h4 className="font-bold text-sm mb-2 text-white line-clamp-3">{q.questionText}</h4>
                             <div className="flex items-center gap-2 mt-4 text-[10px] font-bold text-slate-500 uppercase">
                                 <ShieldCheck size={12} /> Niveau: {q.level}
                             </div>
                         </div>
                     ))}
-                    {questions.length === 0 && (
+                    {displayedQuestions.length === 0 && (
                         <div className="col-span-full py-20 text-center">
                             <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-700">
                                 <Library size={32} />
                             </div>
-                            <p className="text-slate-500 font-medium">Aucun exercice disponible pour ce centre.</p>
+                            <p className="text-slate-500 font-medium">
+                                {view === 'active' ? "Aucun exercice publié." : "Aucun brouillon en attente."}
+                            </p>
                         </div>
                     )}
                 </div>
