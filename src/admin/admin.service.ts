@@ -117,13 +117,41 @@ export class AdminService {
         return { orgs, users, exportedAt: new Date().toISOString() };
     }
 
+    async getSystemSettings() {
+        const settings = await this.prisma.systemSetting.findMany();
+        const defaults = {
+            'maintenance_mode': 'false',
+            'ai_unit_cost': '0.015'
+        };
+
+        const result: any = { ...defaults };
+        settings.forEach(s => {
+            result[s.key] = s.value;
+        });
+
+        // Convert types appropriately for the consumer
+        return {
+            maintenance_mode: result['maintenance_mode'] === 'true',
+            ai_unit_cost: parseFloat(result['ai_unit_cost'])
+        };
+    }
+
+    async updateSystemSetting(key: string, value: string, type: string = 'string') {
+        return await this.prisma.systemSetting.upsert({
+            where: { key },
+            update: { value: value.toString(), type },
+            create: { key, value: value.toString(), type }
+        });
+    }
+
     async getAllOrganizations() {
         return await this.prisma.organization.findMany({
             include: {
                 _count: {
                     select: {
                         users: { where: { role: 'CANDIDATE' } },
-                        questions: true
+                        questions: true,
+                        examSessions: true
                     }
                 }
             },
@@ -249,9 +277,265 @@ export class AdminService {
         });
     }
 
+    async getCoachCalendar(coachId: string) {
+        // 1. Fetch Availabilities
+        const availabilities = await this.prisma.coachAvailability.findMany({
+            where: { coachId }
+        });
+
+        // 2. Fetch "Events" (Sessions of students assigned to this coach)
+        // We'll estimate "events" from ExamSessions created by students of this coach
+        // This is an approximation as we don't have a dedicated "Event/Booking" model yet.
+        const sessions = await this.prisma.examSession.findMany({
+            where: {
+                user: { coachId: coachId }
+            },
+            include: { user: { select: { name: true, id: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 100
+        });
+
+        const events = sessions.map(s => ({
+            id: s.id,
+            date: s.createdAt, // Use creation date as event date
+            startTime: s.createdAt.toISOString().slice(11, 16),
+            endTime: new Date(s.createdAt.getTime() + 60 * 60 * 1000).toISOString().slice(11, 16), // Assume 1h duration
+            type: s.type === 'EXAM' ? 'exam' : 'session',
+            title: s.type === 'EXAM' ? 'Examen' : 'Session',
+            studentName: s.user.name,
+            studentId: s.user.id
+        }));
+
+        return { availabilities, events };
+    }
+
     async getOrgTransactions(orgId: string) {
         return await this.prisma.creditTransaction.findMany({
             where: { organizationId: orgId },
+            orderBy: { createdAt: 'desc' }
+        });
+    }
+
+    async getGlobalTransactions() {
+        return await this.prisma.creditTransaction.findMany({
+            include: {
+                organization: { select: { name: true } }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 200 // Limit for performance
+        });
+    }
+
+    async getCoachesOversight() {
+        // Fetch all coaches and their associated candidate counts and last login
+        const coaches = await this.prisma.user.findMany({
+            where: { role: 'COACH' },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                createdAt: true,
+                lastActivityDate: true,
+                organization: { select: { name: true } },
+                _count: {
+                    select: {
+                        students: true // Use 'students' instead of 'candidates'
+                    }
+                }
+            },
+            orderBy: { name: 'asc' }
+        });
+        return coaches;
+    }
+
+    async getParcoursOversight() {
+        // Fetch all candidates and their aggregated performance stats
+        const candidates = await this.prisma.user.findMany({
+            where: { role: 'CANDIDATE' },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                currentLevel: true,
+                createdAt: true,
+                organization: { select: { name: true, id: true } },
+                coach: { select: { name: true } },
+                xp: true // Use 'xp' as a proxy for stats for now
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 500 // Limit for safety
+        });
+        return candidates;
+    }
+
+    async getOrgOversight() {
+        // Fetch organizations with active student counts and session counts
+        return await this.prisma.organization.findMany({
+            include: {
+                _count: {
+                    select: {
+                        users: { where: { role: 'CANDIDATE' } },
+                        examSessions: true // Use 'examSessions' instead of 'sessions'
+                    }
+                }
+            },
+            orderBy: { name: 'asc' }
+        });
+    }
+
+    async getPlatformHealth() {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        // Fetch All Orgs to get settings
+        const allOrgs = await this.prisma.organization.findMany({
+            where: { status: 'ACTIVE' },
+            include: {
+                _count: {
+                    select: {
+                        users: { where: { role: 'CANDIDATE', createdAt: { gte: thirtyDaysAgo } } },
+                        examSessions: true
+                    }
+                }
+            }
+        });
+
+        // Use first org settings as global default or hardcoded fallback
+        const globalSettings: any = (allOrgs[0] as any)?.settings || {
+            churnDays: 14,
+            coachSaturation: 15,
+            creditThreshold: 0.1
+        };
+
+        const churnDate = new Date();
+        churnDate.setDate(churnDate.getDate() - (globalSettings.churnDays || 14));
+
+        const [
+            totalCandidates,
+            inactiveCandidates,
+            totalCoaches,
+            aiStats,
+            examStats,
+            pendingCoachesCount
+        ] = await Promise.all([
+            this.prisma.user.count({ where: { role: 'CANDIDATE' } }),
+            this.prisma.user.count({
+                where: {
+                    role: 'CANDIDATE',
+                    OR: [
+                        { lastActivityDate: { lt: churnDate } },
+                        { lastActivityDate: null, createdAt: { lt: churnDate } }
+                    ]
+                }
+            }),
+            this.prisma.user.count({ where: { role: 'COACH' } }),
+            this.prisma.examSession.aggregate({
+                where: { status: 'COMPLETED', correlationScore: { not: null } },
+                _avg: { correlationScore: true, aiCostUsd: true },
+                _sum: { aiTokensUsed: true }
+            }),
+            this.prisma.examSession.groupBy({
+                by: ['status'],
+                _count: { _all: true },
+                where: { createdAt: { gte: thirtyDaysAgo } }
+            }),
+            this.prisma.user.count({
+                where: { role: 'COACH', hasVerifiedPrerequisites: false }
+            })
+        ]);
+
+        // Success Rate Calculation
+        const completedExams = await this.prisma.examSession.count({
+            where: { status: 'COMPLETED', score: { gte: 70 }, createdAt: { gte: thirtyDaysAgo } }
+        });
+        const totalCompleted = await this.prisma.examSession.count({
+            where: { status: 'COMPLETED', createdAt: { gte: thirtyDaysAgo } }
+        });
+        const successRate = totalCompleted > 0 ? (completedExams / totalCompleted) * 100 : 0;
+
+        // Coach Saturation
+        const coachLoad = await this.prisma.user.findMany({
+            where: { role: 'COACH' },
+            select: { _count: { select: { students: true } } }
+        });
+        const saturatedCoachesCount = coachLoad.filter(c => c._count.students >= (globalSettings.coachSaturation || 15)).length;
+
+        // Top/Bottom OFs (by new signups this month)
+        const orgsWithSignups = allOrgs.map(org => {
+            const orgSet: any = (org as any).settings || globalSettings;
+            const threshold = orgSet.creditThreshold || 0.1;
+            return {
+                id: org.id,
+                name: org.name,
+                newSignups: org._count.users,
+                credits: org.creditsBalance,
+                isCritical: org.creditsBalance <= (org.monthlyQuota * threshold)
+            };
+        }).sort((a, b) => b.newSignups - a.newSignups);
+
+        return {
+            pedagogical: {
+                successRate,
+                vitesseProgression: "12 jours / niveau", // Global estimate
+                activeExams30d: totalCompleted
+            },
+            churnRisk: {
+                total: totalCandidates,
+                inactive: inactiveCandidates,
+                percentage: totalCandidates > 0 ? (inactiveCandidates / totalCandidates) * 100 : 0
+            },
+            coachSaturation: {
+                totalCoaches,
+                saturatedCoaches: saturatedCoachesCount,
+                avgLoad: totalCoaches > 0 ? totalCandidates / totalCoaches : 0
+            },
+            aiQuality: {
+                precision: aiStats._avg.correlationScore || 0,
+                avgCostPerExam: aiStats._avg.aiCostUsd || 0,
+                totalTokens30d: aiStats._sum.aiTokensUsed || 0
+            },
+            commercial: {
+                topOrgs: orgsWithSignups.slice(0, 5),
+                bottomOrgs: orgsWithSignups.filter(o => o.newSignups === 0).slice(0, 5),
+                pipelineRecrutement: pendingCoachesCount,
+                criticalOrgsCount: orgsWithSignups.filter(o => o.isCritical).length
+            },
+            settings: globalSettings
+        };
+    }
+
+    async getOrgSettings(orgId: string) {
+        const org = await this.prisma.organization.findUnique({
+            where: { id: orgId },
+            select: { settings: true }
+        });
+        return (org as any)?.settings || {
+            churnDays: 14,
+            coachSaturation: 15,
+            creditThreshold: 0.1
+        };
+    }
+
+    async updateOrgSettings(orgId: string, settings: any) {
+        return await this.prisma.organization.update({
+            where: { id: orgId },
+            data: { settings }
+        });
+    }
+
+    async getGlobalInvoices() {
+        return await this.prisma.coachInvoice.findMany({
+            include: {
+                coach: { select: { name: true, email: true } },
+                // organization: { select: { name: true } } // Invoice doesn't have direct relation to Organization in schema currently? 
+                // Wait, schema says: organizationId String. But no relation defined line 108?
+                // Let's check schema again.
+                // model CoachInvoice { ... organizationId String ... coach User ... }
+                // There is NO relation field to Organization defined in CoachInvoice model in schema.prisma viewed in step 371.
+                // I cannot include organization. I must rely on manual fetch or update schema.
+                // Updating schema is safer but requires migration.
+                // For now, I will just fetch coach.
+            },
             orderBy: { createdAt: 'desc' }
         });
     }
@@ -301,6 +585,20 @@ export class AdminService {
                 organization: true,
                 examSessions: {
                     orderBy: { createdAt: 'desc' },
+                },
+                pedagogicalActions: {
+                    orderBy: { createdAt: 'desc' },
+                    include: { coach: { select: { name: true } } }
+                },
+                badges: {
+                    include: { badge: true }
+                },
+                coach: {
+                    select: { id: true, name: true, email: true, phone: true }
+                },
+                offlineProofs: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 5
                 }
             }
         });
@@ -313,12 +611,52 @@ export class AdminService {
             _count: true
         });
 
+        // Calculer la moyenne par compétence
+        const sessions = user.examSessions.filter(s => s.status === 'COMPLETED' && s.breakdown);
+        const breakdownStats = sessions.reduce((acc, curr: any) => {
+            const bd = typeof curr.breakdown === 'string' ? JSON.parse(curr.breakdown) : curr.breakdown;
+            if (bd) {
+                acc.CO += bd.CO || 0;
+                acc.CE += bd.CE || 0;
+                acc.EO += bd.EO || 0;
+                acc.EE += bd.EE || 0;
+                acc.count++;
+            }
+            return acc;
+        }, { CO: 0, CE: 0, EO: 0, EE: 0, count: 0 });
+
+        const detailedStats = breakdownStats.count > 0 ? {
+            CO: Math.round(breakdownStats.CO / breakdownStats.count),
+            CE: Math.round(breakdownStats.CE / breakdownStats.count),
+            EO: Math.round(breakdownStats.EO / breakdownStats.count),
+            EE: Math.round(breakdownStats.EE / breakdownStats.count)
+        } : null;
+
         return {
             ...user,
             stats: {
                 averageScore: Math.round(stats._avg.score || 0),
-                totalExams: stats._count
-            }
+                totalExams: stats._count,
+                breakdown: detailedStats
+            },
+            gamification: {
+                xp: user.xp,
+                streak: user.streakCurrent,
+                streakMax: user.streakMax,
+                badges: user.badges,
+            },
+            prerequisites: {
+                verified: user.hasVerifiedPrerequisites,
+                proofUrl: user.prerequisitesProofUrl,
+            },
+            objective: user.objective,
+            coach: user.coach,
+            portfolio: user.offlineProofs,
+            activityLogs: await (this.prisma as any).auditLog.findMany({
+                where: { userId },
+                orderBy: { createdAt: 'desc' },
+                take: 10
+            })
         };
     }
 

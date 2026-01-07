@@ -19,7 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useState } from 'react';
 
 const LandingPage: React.FC = () => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, logout } = useAuth();
     const [isDemoOpen, setIsDemoOpen] = useState(false);
 
     return (
@@ -57,12 +57,20 @@ const LandingPage: React.FC = () => {
                                 </Link>
                             </>
                         ) : (
-                            <Link
-                                to="/dashboard"
-                                className="bg-indigo-600 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-200 transition-all active:scale-95"
-                            >
-                                Mon Espace
-                            </Link>
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={logout}
+                                    className="text-sm font-bold text-rose-500 hover:text-rose-600 transition-all"
+                                >
+                                    Déconnexion
+                                </button>
+                                <Link
+                                    to="/dashboard"
+                                    className="bg-indigo-600 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-200 transition-all active:scale-95"
+                                >
+                                    Mon Espace
+                                </Link>
+                            </div>
                         )}
                     </div>
                 </div>

@@ -33,6 +33,12 @@ export class ContractsService {
                         email: true,
                     },
                 },
+                organization: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
             },
         });
     }
@@ -46,6 +52,12 @@ export class ContractsService {
                         id: true,
                         name: true,
                         email: true,
+                    },
+                },
+                organization: {
+                    select: {
+                        id: true,
+                        name: true,
                     },
                 },
             },

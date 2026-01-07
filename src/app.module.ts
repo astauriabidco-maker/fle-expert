@@ -26,6 +26,7 @@ import { GamificationModule } from './gamification/gamification.module';
 import { AIModule } from './ai/ai.module';
 import { CivicModule } from './civic/civic.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ClassroomModule } from './classroom/classroom.module';
 
 
 @Module({
@@ -51,7 +52,8 @@ import { NotificationsModule } from './notifications/notifications.module';
     GamificationModule,
     AIModule,
     CivicModule,
-    NotificationsModule
+    NotificationsModule,
+    ClassroomModule
 
   ],
   controllers: [AppController],

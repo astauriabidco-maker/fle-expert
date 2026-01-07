@@ -4,9 +4,10 @@ import { AdminService } from './admin.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CommonModule } from '../common/common.module';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-    imports: [PrismaModule, CommonModule, AuthModule],
+    imports: [PrismaModule, CommonModule, AuthModule, NotificationsModule],
     controllers: [AdminController],
     providers: [AdminService],
 })

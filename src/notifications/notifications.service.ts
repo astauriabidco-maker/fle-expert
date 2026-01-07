@@ -17,6 +17,26 @@ export class NotificationsService {
         });
     }
 
+    async createGlobalNotification(data: { title: string; content: string; type?: string; link?: string }) {
+        // Fetch all users
+        const users = await this.prisma.user.findMany({ select: { id: true } });
+
+        // Create notifications for everyone
+        // For performance on large DBs, we'd use createMany, but for smaller ones, a loop is fine.
+        // Actually, Prisma supports createMany for PostgreSQL (which is what we use)
+        const notificationData = users.map(user => ({
+            userId: user.id,
+            title: data.title,
+            content: data.content,
+            type: data.type || 'info',
+            link: data.link
+        }));
+
+        return this.prisma.notification.createMany({
+            data: notificationData
+        });
+    }
+
     async getUserNotifications(userId: string) {
         return this.prisma.notification.findMany({
             where: { userId },

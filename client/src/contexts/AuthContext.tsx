@@ -40,6 +40,7 @@ interface AuthState {
     token: string | null;
     isAuthenticated: boolean;
     isLoading: boolean;
+    isMaintenanceMode: boolean;
 }
 
 interface AuthContextType extends AuthState {
@@ -56,6 +57,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [organization, setOrganization] = useState<Organization | null>(null);
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+
+    const checkMaintenance = async () => {
+        try {
+            const res = await fetch('http://localhost:3333/status');
+            if (res.ok) {
+                const data = await res.json();
+                setIsMaintenanceMode(data.maintenance);
+            }
+        } catch (error) {
+            console.error("Maintenance check failed:", error);
+        }
+    };
+
+    useEffect(() => {
+        checkMaintenance();
+        const interval = setInterval(checkMaintenance, 30000); // Check every 30s
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         // Check localStorage for persisted session
@@ -115,7 +135,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isLoading,
             login,
             logout,
-            updateUser
+            updateUser,
+            isMaintenanceMode
         }}>
 
             {children}

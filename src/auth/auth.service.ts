@@ -48,8 +48,12 @@ export class AuthService {
             organizationId: user.organization?.id || null
         };
 
-        return {
-            access_token: this.jwtService.sign(payload),
+        console.log("[DEBUG] AuthService.login - payload:", JSON.stringify(payload));
+        const token = this.jwtService.sign(payload);
+        console.log("[DEBUG] AuthService.login - token generated");
+
+        const response = {
+            access_token: token,
             user: {
                 id: user.id,
                 name: user.name,
@@ -77,6 +81,8 @@ export class AuthService {
                 logoUrl: user.organization.logoUrl
             } : null
         };
+        console.log("[DEBUG] AuthService.login - response prepared");
+        return response;
     }
 
     async register(registrationData: any, token: string) {

@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,241 +7,244 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enums removed for SQLite compatibility
-
 model Organization {
-  id             String              @id @default(uuid())
+  id               String              @id @default(uuid())
+  name             String
+  slug             String              @unique
+  creditsBalance   Int                 @default(0)
+  publicHourlyRate Float               @default(0)
+  monthlyQuota     Int                 @default(1000)
+  aiSettings       String?
+  logoUrl          String?
+  primaryColor     String?
+  status           String              @default("ACTIVE")
+  settings         Json?               // Health thresholds/config
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  auditLogs        AuditLog[]
+  contracts        Contract[]
+  transactions     CreditTransaction[]
+  examSessions     ExamSession[]
+  invitations      Invitation[]
+  offlineProofs    OfflineProof[]
+  questions        Question[]
+  proposals        TrainingProposal[]
+  users            User[]
+  classrooms       Classroom[]
+}
+
+model Classroom {
+  id             String       @id @default(uuid())
   name           String
-  slug           String              @unique
-  creditsBalance Int                 @default(0)
-  publicHourlyRate Float             @default(0) // New field for quotes
-  monthlyQuota   Int                 @default(1000) // Max tests per month
-  aiSettings     String?             // JSON: { provider, apiKey, model }
-  logoUrl        String?
-  primaryColor   String?
-  status         String              @default("ACTIVE") // ACTIVE, SUSPENDED, DELETED
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  users          User[]
-  examSessions   ExamSession[]
-  transactions   CreditTransaction[]
-  questions      Question[]
-  invitations    Invitation[]
-  offlineProofs  OfflineProof[]
-  contracts      Contract[]
-  proposals      TrainingProposal[]
-  auditLogs      AuditLog[]
+  level          String?      // A1, A2...
+  program        String?      // STANDARD, INTENSIVE
+  capacity       Int          @default(15)
+  organizationId String
+  coachId        String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  coach          User?        @relation("CoachClassrooms", fields: [coachId], references: [id])
+  students       User[]       @relation("StudentClassroom")
 }
 
 model User {
-  id             String        @id @default(uuid())
-  email          String        @unique
-  password       String
-  name           String?
-  role           String        @default("CANDIDATE")
-  currentLevel   String        @default("A1")
-  targetLevel    String?       @default("B2") // Auto-set based on objective
-  objective      String?       // RESIDENCY_MULTI_YEAR, RESIDENCY_10_YEAR, NATURALIZATION, CANADA, PROFESSIONAL
-  hasCompletedDiagnostic Boolean @default(false)
-  hasVerifiedPrerequisites Boolean @default(false)
-  prerequisitesProofUrl String?
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-  examSessions   ExamSession[]
-  xp             Int           @default(0)
-  streakCurrent  Int           @default(0)
-  streakMax      Int           @default(0)
-  lastActivityDate DateTime?
-  civicProgress  UserCivicProgress[]
-  badges         UserBadge[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  offlineProofs  OfflineProof[]
-  contracts      Contract[]
-  proposals      TrainingProposal[]
-  auditLogs      AuditLog[]
-  pedagogicalActions PedagogicalAction[] @relation("StudentActions")
-  coachActions       PedagogicalAction[] @relation("CoachActions")
-  notifications      Notification[]
-
-
-  // Sales Relations
-  salesRepId     String?       // ID of the sales rep who owns this candidate
-  salesRep       User?         @relation("SalesCandidates", fields: [salesRepId], references: [id])
-  candidates     User[]        @relation("SalesCandidates")
-
-  // Coach Relations
-  coachId        String?       // ID of the coach assigned to this student
-  coach          User?         @relation("CoachStudents", fields: [coachId], references: [id])
-  students       User[]        @relation("CoachStudents")
-  tags           String?       // JSON array of strings: ["Priorité", "En suivi"]
-
-  // Formateur Admin Fields
-  nda            String?       // Numero Declaration Activite
-  hourlyRate     Float?        // Cout horaire EUR
-  phone          String?
-  address        String?
-  postalCode     String?
-  city           String?
-  contactPerson  String?       // Contact associe
-  signature      String?       // Base64 string of signature
-  formateurDocuments FormateurDocument[]
-  availabilities     CoachAvailability[]
-  invoices           CoachInvoice[]
+  id                       String              @id @default(uuid())
+  email                    String              @unique
+  password                 String
+  name                     String?
+  role                     String              @default("CANDIDATE")
+  currentLevel             String              @default("A1")
+  targetLevel              String?             @default("B2")
+  hasCompletedDiagnostic   Boolean             @default(false)
+  organizationId           String?
+  xp                       Int                 @default(0)
+  streakCurrent            Int                 @default(0)
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+  salesRepId               String?
+  coachId                  String?
+  classroomId              String?
+  objective                String?
+  address                  String?
+  city                     String?
+  contactPerson            String?
+  hourlyRate               Float?
+  nda                      String?
+  phone                    String?
+  postalCode               String?
+  tags                     String?
+  signature                String?
+  hasVerifiedPrerequisites Boolean             @default(false)
+  prerequisitesProofUrl    String?
+  lastActivityDate         DateTime?
+  streakMax                Int                 @default(0)
+  auditLogs                AuditLog[]
+  availabilities           CoachAvailability[]
+  invoices                 CoachInvoice[]
+  contracts                Contract[]
+  examSessions             ExamSession[]
+  formateurDocuments       FormateurDocument[]
+  notifications            Notification[]
+  offlineProofs            OfflineProof[]
+  coachActions             PedagogicalAction[] @relation("CoachActions")
+  pedagogicalActions       PedagogicalAction[] @relation("StudentActions")
+  proposals                TrainingProposal[]
+  coach                    User?               @relation("CoachStudents", fields: [coachId], references: [id])
+  students                 User[]              @relation("CoachStudents")
+  organization             Organization?       @relation(fields: [organizationId], references: [id])
+  salesRep                 User?               @relation("SalesCandidates", fields: [salesRepId], references: [id])
+  candidates               User[]              @relation("SalesCandidates")
+  badges                   UserBadge[]
+  civicProgress            UserCivicProgress[]
+  classroom                Classroom?          @relation("StudentClassroom", fields: [classroomId], references: [id])
+  coachedClassrooms        Classroom[]         @relation("CoachClassrooms")
 }
 
 model CoachAvailability {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   coachId     String
-  coach       User     @relation(fields: [coachId], references: [id])
-  dayOfWeek   Int      // 0-6 (0=Sun, 1=Mon, etc.)
-  startTime   String   // "HH:mm"
-  endTime     String   // "HH:mm"
-  date        DateTime? // Optional: for specific one-off availability
-  isRecurring Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  dayOfWeek   Int
+  startTime   String
+  endTime     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  date        DateTime?
+  isRecurring Boolean   @default(true)
+  coach       User      @relation(fields: [coachId], references: [id])
 }
 
 model CoachInvoice {
   id             String   @id @default(uuid())
   invoiceNumber  String   @unique
   coachId        String
-  coach          User     @relation(fields: [coachId], references: [id])
   organizationId String
   amount         Float
   hoursCount     Float
-  status         String   @default("DRAFT") // DRAFT, SENT, PAID
+  status         String   @default("DRAFT")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  coach          User     @relation(fields: [coachId], references: [id])
 }
 
 model PedagogicalAction {
-  id             String       @id @default(uuid())
-  type           String       // "FEEDBACK", "ASSIGNMENT", "LEVEL_ADJUST"
-  content        String       // Texte du feedback ou Nom du topic
-  studentId      String
-  student        User         @relation("StudentActions", fields: [studentId], references: [id])
-  coachId        String
-  coach          User         @relation("CoachActions", fields: [coachId], references: [id])
-  createdAt      DateTime     @default(now())
+  id        String   @id @default(uuid())
+  type      String
+  content   String
+  studentId String
+  coachId   String
+  createdAt DateTime @default(now())
+  coach     User     @relation("CoachActions", fields: [coachId], references: [id])
+  student   User     @relation("StudentActions", fields: [studentId], references: [id])
 }
 
 model FormateurDocument {
-  id         String   @id @default(uuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
-  type       String   // CV, DIPLOMA, VIGILANCE, NDA_DOC, KBIS, CONTRACT
-  filename   String
-  url        String   // Path to stored file
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  filename  String
+  url       String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model TrainingProposal {
   id             String       @id @default(uuid())
   userId         String
-  user           User         @relation(fields: [userId], references: [id])
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  
-  baseLevel      String       // Level at start (A1, A2...)
-  targetLevel    String       // Level to reach
+  baseLevel      String
+  targetLevel    String
   estimatedHours Int
   hourlyRate     Float
   totalCost      Float
-  
-  planModules    String       // JSON array of recommended modules
-  status         String       @default("DRAFT") // DRAFT, SENT, ACCEPTED
-  
+  planModules    String
+  status         String       @default("DRAFT")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
 }
 
 model Contract {
-  id             String       @id @default(uuid())
-  startDate      DateTime
-  endDate        DateTime?
-  hourlyRate     Float        @default(0)
-  totalHours     Int          @default(0)
-  status         String       @default("ACTIVE")
-  
-  formateurId    String
-  formateur      User         @relation(fields: [formateurId], references: [id])
-  
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id                  String       @id @default(uuid())
+  startDate           DateTime
+  endDate             DateTime?
+  hourlyRate          Float        @default(0)
+  totalHours          Int          @default(0)
+  status              String       @default("ACTIVE")
+  contractDocumentUrl String?       // Link to signed PDF contract
+  formateurId         String
+  organizationId      String
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  formateur           User         @relation(fields: [formateurId], references: [id])
+  organization        Organization @relation(fields: [organizationId], references: [id])
 }
 
 model ExamSession {
-  id             String       @id @default(uuid())
-  userId         String
-  user           User         @relation(fields: [userId], references: [id])
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  type           String       @default("EXAM") // "EXAM" or "PRACTICE"
-  status         String       @default("PENDING") // Could be an enum if needed
-  score          Int?
-  estimatedLevel String?
-  scoreHash      String?      @unique
-  breakdown      String?      // JSON string of skill breakdown
-  responses      String?      // JSON string of all answers
-  feedback       String?      // Human or AI overall feedback
-  currentQuestionIndex Int?   @default(0)
-  
-  // AI & Integrity fields
-  integrityScore Int          @default(0)
-  integrityStatus String?     @default("VALID")
-  aiTokensUsed   Int          @default(0)
-  aiCostUsd      Float        @default(0)
-  humanGrade     Int?         // For correlation check
-  correlationScore Float?     // Diff between AI and Human
-  aiDebugData    Json?        // Raw AI reasoning for Audit (matches donneesBrutes)
-  
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  completedAt    DateTime?
-  answers        UserAnswer[]
+  id                   String       @id @default(uuid())
+  userId               String
+  organizationId       String
+  type                 String       @default("EXAM")
+  status               String       @default("PENDING")
+  score                Int?
+  estimatedLevel       String?
+  scoreHash            String?      @unique
+  integrityScore       Int          @default(0)
+  integrityStatus      String?      @default("VALID")
+  aiTokensUsed         Int          @default(0)
+  aiCostUsd            Float        @default(0)
+  humanGrade           Int?
+  correlationScore     Float?
+  aiDebugData          Json?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  breakdown            String?
+  completedAt          DateTime?
+  currentQuestionIndex Int?         @default(0)
+  feedback             String?
+  responses            String?
+  organization         Organization @relation(fields: [organizationId], references: [id])
+  user                 User         @relation(fields: [userId], references: [id])
+  answers              UserAnswer[]
 }
 
 model UserAnswer {
   id             String      @id @default(uuid())
   sessionId      String
-  session        ExamSession @relation(fields: [sessionId], references: [id])
   questionId     String
-  question       Question    @relation(fields: [questionId], references: [id])
   isCorrect      Boolean
-  selectedOption String? // Optional: store what they picked
+  selectedOption String?
   createdAt      DateTime    @default(now())
+  question       Question    @relation(fields: [questionId], references: [id])
+  session        ExamSession @relation(fields: [sessionId], references: [id])
 }
 
 model CreditTransaction {
-  id             String          @id @default(uuid())
+  id             String       @id @default(uuid())
   organizationId String
-  organization   Organization    @relation(fields: [organizationId], references: [id])
   amount         Int
   type           String
-  createdAt      DateTime        @default(now())
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
 }
 
-
 model Question {
-  id              String   @id @default(uuid())
-  organizationId  String
-  level           String
-  topic           String
-  content         String   
-  questionText    String   
-  options         String
-  correctAnswer   String   // The value or ID of the correct option
-  explanation     String   
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  
-  organization    Organization @relation(fields: [organizationId], references: [id])
-  answers         UserAnswer[]
+  id             String       @id @default(uuid())
+  organizationId String
+  level          String
+  topic          String
+  skill          String       @default("READING")
+  content        String
+  questionText   String
+  options        String
+  correctAnswer  String
+  explanation    String
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  answers        UserAnswer[]
 }
 
 model Invitation {
@@ -255,17 +252,15 @@ model Invitation {
   email          String
   token          String       @unique
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
   expiresAt      DateTime
   createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
 }
 
 model OfflineProof {
   id             String       @id @default(uuid())
   userId         String
-  user           User         @relation(fields: [userId], references: [id])
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
   title          String
   type           String
   description    String?
@@ -275,19 +270,21 @@ model OfflineProof {
   feedback       String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
 }
 
 model AuditLog {
-  id             String       @id @default(uuid())
-  action         String       // CREATE_ORG, DELETE_USER, UPDATE_QUOTA, etc.
-  entityType     String       // USER, ORGANIZATION, SESSION
+  id             String        @id @default(uuid())
+  action         String
+  entityType     String
   entityId       String
-  payload        String?      // JSON string of changes
-  userId         String?      // Who performed the action
-  user           User?         @relation(fields: [userId], references: [id])
+  payload        String?
+  userId         String?
   organizationId String?
+  createdAt      DateTime      @default(now())
   organization   Organization? @relation(fields: [organizationId], references: [id])
-  createdAt      DateTime     @default(now())
+  user           User?         @relation(fields: [userId], references: [id])
 }
 
 model Lead {
@@ -296,21 +293,21 @@ model Lead {
   schoolName  String
   contactName String?
   phone       String?
-  status      String   @default("NEW") // NEW, CONTACTED, CONVERTED, LOST
+  status      String   @default("NEW")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
 model Notification {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  title       String
-  content     String
-  type        String   @default("info") // info, achievement, civic
-  link        String?  // Optional link to redirect
-  read        Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  content   String
+  type      String   @default("info")
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model Message {
@@ -327,67 +324,89 @@ model Badge {
   id          String      @id @default(uuid())
   name        String
   description String
-  icon        String      // Lucide icon name or emoji
-  color       String      // Tailwind or Hex color
-  rarity      String      @default("COMMON") // COMMON, RARE, EPIC, LEGENDARY
+  icon        String
+  color       String
+  rarity      String      @default("COMMON")
   users       UserBadge[]
 }
 
 model UserBadge {
-  id        String   @id @default(uuid())
-  userId    String
-  badgeId   String
-  user      User     @relation(fields: [userId], references: [id])
-  badge     Badge    @relation(fields: [badgeId], references: [id])
+  id         String   @id @default(uuid())
+  userId     String
+  badgeId    String
   unlockedAt DateTime @default(now())
+  badge      Badge    @relation(fields: [badgeId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, badgeId])
 }
 
 model CivicModule {
-  id             String          @id @default(uuid())
-  title          String
-  topic          String
-  order          Int             @default(0)
-  lessons        CivicLesson[]
-  questions      CivicQuestion[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id        String          @id @default(uuid())
+  title     String
+  topic     String
+  order     Int             @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  lessons   CivicLesson[]
+  questions CivicQuestion[]
 }
 
 model CivicLesson {
-  id             String       @id @default(uuid())
-  moduleId       String
-  module         CivicModule  @relation(fields: [moduleId], references: [id])
-  title          String
-  content        String
-  videoId        String?
-  keyPoints      String?      // JSON array of strings
-  order          Int          @default(0)
+  id        String      @id @default(uuid())
+  moduleId  String
+  title     String
+  content   String
+  videoId   String?
+  keyPoints String?
+  order     Int         @default(0)
+  module    CivicModule @relation(fields: [moduleId], references: [id])
 }
 
 model CivicQuestion {
-  id             String       @id @default(uuid())
-  moduleId       String?      // Optional: link to a specific module for end-of-module quiz
-  module         CivicModule? @relation(fields: [moduleId], references: [id])
-  text           String
-  options        String       // JSON array of strings
-  correctAnswer  Int          // Index of the correct option
-  explanation    String?
-  isOfficial     Boolean      @default(false) // If true, can appear in the Exam Simulator
-  category       String?      // e.g., "Histoire", "Institutions"
-  createdAt      DateTime     @default(now())
+  id            String       @id @default(uuid())
+  moduleId      String?
+  text          String
+  options       String
+  correctAnswer Int
+  explanation   String?
+  isOfficial    Boolean      @default(false)
+  category      String?
+  createdAt     DateTime     @default(now())
+  module        CivicModule? @relation(fields: [moduleId], references: [id])
 }
 
 model UserCivicProgress {
-  id             String   @id @default(uuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id])
-  moduleId       String
-  lessonId       String?
-  status         String   @default("COMPLETED") // COMPLETED
-  score          Int?     // For quizzes
-  createdAt      DateTime @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  moduleId  String
+  lessonId  String?
+  status    String   @default("COMPLETED")
+  score     Int?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, moduleId, lessonId])
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  type      String   @default("string") // string, boolean, number
+  updatedAt DateTime @updatedAt
+}
+
+model Topic {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Sector {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
 }

@@ -44,13 +44,13 @@ async function main() {
         where: { email },
         update: {
             password: storedPassword,
-            role: 'ADMIN', // Ensure forced role
+            role: 'SUPER_ADMIN', // Ensure forced role
             organizationId: org.id
         },
         create: {
             email,
             name: 'Super Admin',
-            role: 'ADMIN',
+            role: 'SUPER_ADMIN',
             organizationId: org.id,
             password: storedPassword
         }

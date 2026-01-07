@@ -57,8 +57,9 @@ export class ContentLabService {
         }
     }
 
-    async getQuestions(orgId: string, filters: { level?: string, topic?: string, search?: string }) {
-        const where: any = { organizationId: orgId };
+    async getQuestions(orgId: string | null, filters: { level?: string, topic?: string, search?: string }) {
+        const where: any = {};
+        if (orgId) where.organizationId = orgId;
 
         if (filters.level) where.level = filters.level;
         if (filters.topic) where.topic = filters.topic;
@@ -71,13 +72,17 @@ export class ContentLabService {
 
         return this.prisma.question.findMany({
             where,
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            include: { organization: { select: { name: true } } } // Include org name for moderation
         });
     }
 
-    async getQuestion(id: string, orgId: string) {
+    async getQuestion(id: string, orgId: string | null) {
+        const where: any = { id };
+        if (orgId) where.organizationId = orgId;
+
         const question = await this.prisma.question.findFirst({
-            where: { id, organizationId: orgId }
+            where
         });
         if (!question) throw new NotFoundException('Question non trouvée');
         return question;
@@ -92,8 +97,8 @@ export class ContentLabService {
         });
     }
 
-    async updateQuestion(id: string, orgId: string, data: any) {
-        // Verify ownership
+    async updateQuestion(id: string, orgId: string | null, data: any) {
+        // Verify ownership if orgId is provided
         await this.getQuestion(id, orgId);
 
         return this.prisma.question.update({
@@ -102,11 +107,51 @@ export class ContentLabService {
         });
     }
 
-    async deleteQuestion(id: string, orgId: string) {
-        // Verify ownership
+    async deleteQuestion(id: string, orgId: string | null) {
+        // Verify ownership if orgId is provided
         await this.getQuestion(id, orgId);
 
         return this.prisma.question.delete({
+            where: { id }
+        });
+    }
+
+    // ========== TOPIC MANAGEMENT ==========
+    async getTopics() {
+        return this.prisma.topic.findMany({
+            where: { isActive: true },
+            orderBy: { name: 'asc' }
+        });
+    }
+
+    async createTopic(name: string) {
+        return this.prisma.topic.create({
+            data: { name }
+        });
+    }
+
+    async deleteTopic(id: string) {
+        return this.prisma.topic.delete({
+            where: { id }
+        });
+    }
+
+    // ========== SECTOR MANAGEMENT ==========
+    async getSectors() {
+        return this.prisma.sector.findMany({
+            where: { isActive: true },
+            orderBy: { name: 'asc' }
+        });
+    }
+
+    async createSector(name: string) {
+        return this.prisma.sector.create({
+            data: { name }
+        });
+    }
+
+    async deleteSector(id: string) {
+        return this.prisma.sector.delete({
             where: { id }
         });
     }

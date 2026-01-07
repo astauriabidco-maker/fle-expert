@@ -13,6 +13,7 @@ import RegisterPage from './components/RegisterPage';
 import PartnerRegisterPage from './components/PartnerRegisterPage';
 import OnboardingPage from './components/OnboardingPage';
 import ContentLabPage from './components/ContentLabPage';
+import CivicContentManager from './components/CivicContentManager';
 import OrgAnalytics from './components/OrgAnalytics';
 import HomeRoute from './components/HomeRoute';
 import PracticeSessionPage from './components/PracticeSessionPage';
@@ -23,8 +24,16 @@ import ImpersonationBanner from './components/ImpersonationBanner';
 import SalesDashboard from './components/SalesDashboard';
 import CoachDashboard from './components/CoachDashboard';
 import CandidateDashboard from './components/CandidateDashboard';
+import MaintenancePage from './components/MaintenancePage';
+import { useAuth } from './contexts/AuthContext';
 
 function AppRoutes() {
+  const { isMaintenanceMode, user } = useAuth();
+
+  if (isMaintenanceMode && user?.role !== 'SUPER_ADMIN') {
+    return <MaintenancePage />;
+  }
+
   return (
     <Routes>
       {/* Smart Home Route: Landing Page is always at / */}
@@ -50,8 +59,13 @@ function AppRoutes() {
         <Route path="/content-lab" element={<ContentLabPage />} />
       </Route>
 
-      {/* 1. Super Admin Space */}
+      {/* Civic Admin (Super Admin only) */}
       <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} />}>
+        <Route path="/civic-admin" element={<CivicContentManager />} />
+      </Route>
+
+      {/* 1. Super Admin Space */}
+      <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']} />}>
         <Route path="/super-admin" element={<SuperAdminDashboard />} />
       </Route>
 

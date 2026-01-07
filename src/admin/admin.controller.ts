@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Get, Patch, Param, Query, Delete, UseGuards, Req } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { Roles } from '../common/decorators/roles.decorator';
 import { SecurityService } from '../common/services/security.service';
@@ -11,6 +12,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 export class AdminController {
     constructor(
         private readonly adminService: AdminService,
+        private readonly notifications: NotificationsService,
         private readonly prisma: PrismaService,
         private readonly security: SecurityService
     ) { }
@@ -120,6 +122,18 @@ export class AdminController {
         return this.adminService.resetOrgAdminPassword(id, data.password);
     }
 
+    @Get('transactions')
+    @Roles('SUPER_ADMIN')
+    async getGlobalTransactions() {
+        return this.adminService.getGlobalTransactions();
+    }
+
+    @Get('invoices')
+    @Roles('SUPER_ADMIN')
+    async getGlobalInvoices() {
+        return this.adminService.getGlobalInvoices();
+    }
+
     @Get('organizations/:id/transactions')
     @Roles('SUPER_ADMIN', 'ORG_ADMIN')
     async getOrgTransactions(@Param('id') id: string, @Req() req: any) {
@@ -139,6 +153,48 @@ export class AdminController {
     @Roles('SUPER_ADMIN', 'ORG_ADMIN', 'COACH')
     async getSession(@Param('id') id: string) {
         return this.adminService.getSessionDetails(id);
+    }
+
+    @Get('oversight/coaches')
+    @Roles('SUPER_ADMIN')
+    async getCoachesOversight() {
+        return this.adminService.getCoachesOversight();
+    }
+
+    @Get('oversight/parcours')
+    @Roles('SUPER_ADMIN')
+    async getParcoursOversight() {
+        return this.adminService.getParcoursOversight();
+    }
+
+    @Get('oversight/organizations')
+    @Roles('SUPER_ADMIN')
+    async getOrgOversight() {
+        return this.adminService.getOrgOversight();
+    }
+
+    @Get('oversight/health')
+    @Roles('SUPER_ADMIN')
+    async getPlatformHealth() {
+        return this.adminService.getPlatformHealth();
+    }
+
+    @Get('settings/org/:orgId')
+    @Roles('SUPER_ADMIN', 'ORG_ADMIN')
+    async getOrgSettings(@Param('orgId') orgId: string) {
+        return this.adminService.getOrgSettings(orgId);
+    }
+
+    @Patch('settings/org/:orgId')
+    @Roles('SUPER_ADMIN', 'ORG_ADMIN')
+    async updateOrgSettings(@Param('orgId') orgId: string, @Body() settings: any) {
+        return this.adminService.updateOrgSettings(orgId, settings);
+    }
+
+    @Get('coaches/:id/calendar')
+    @Roles('SUPER_ADMIN')
+    async getCoachCalendar(@Param('id') id: string) {
+        return this.adminService.getCoachCalendar(id);
     }
 
     @Get('users/:id/profile')
@@ -163,5 +219,23 @@ export class AdminController {
     @Roles('SUPER_ADMIN')
     async exportData() {
         return this.adminService.exportGdprData();
+    }
+
+    @Get('settings')
+    @Roles('SUPER_ADMIN')
+    async getSettings() {
+        return this.adminService.getSystemSettings();
+    }
+
+    @Patch('settings/:key')
+    @Roles('SUPER_ADMIN')
+    async updateSetting(@Param('key') key: string, @Body() data: { value: any, type: string }) {
+        return this.adminService.updateSystemSetting(key, data.value, data.type);
+    }
+
+    @Post('notifications/global')
+    @Roles('SUPER_ADMIN')
+    async sendGlobalNotification(@Body() data: { title: string, content: string, type: string, link?: string }) {
+        return this.notifications.createGlobalNotification(data);
     }
 }

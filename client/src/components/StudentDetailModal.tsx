@@ -21,12 +21,23 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
     const [message, setMessage] = useState<string | null>(null);
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [classrooms, setClassrooms] = useState<any[]>([]);
 
     useEffect(() => {
         if (student && organization?.id) {
             fetchDetailedProfile();
+            fetchClassrooms();
         }
     }, [student, organization?.id]);
+
+    const fetchClassrooms = async () => {
+        try {
+            const res = await fetch(`http://localhost:3333/classrooms/org/${organization?.id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) setClassrooms(await res.json());
+        } catch (e) { console.error(e); }
+    };
 
     const fetchDetailedProfile = async () => {
         setLoading(true);
@@ -109,7 +120,7 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
                             <div>
                                 <h2 className="text-2xl font-black text-white">{profile?.name || student.name}</h2>
                                 <p className="text-white/70 font-medium">{profile?.email || student.email}</p>
-                                <div className="flex items-center gap-2 mt-2">
+                                <div className="flex items-center gap-2 mt-2 flex-wrap">
                                     <span className="px-3 py-1 bg-white/20 backdrop-blur text-white rounded-full text-xs font-bold uppercase tracking-wider">
                                         {profile?.currentLevel || student.currentLevel}
                                     </span>
@@ -118,6 +129,38 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
                                             <Target size={12} /> Objectif: {profile.targetLevel}
                                         </span>
                                     )}
+
+                                    {/* Classroom Selector */}
+                                    <div className="relative">
+                                        <select
+                                            className="appearance-none pl-8 pr-4 py-1 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold uppercase tracking-wider outline-none border border-white/20 cursor-pointer transition-colors"
+                                            value={profile?.classroomId || student.classroomId || ''}
+                                            onChange={async (e) => {
+                                                const newClassroomId = e.target.value;
+                                                if (!newClassroomId) return;
+                                                try {
+                                                    const res = await fetch(`http://localhost:3333/classrooms/${newClassroomId}/assign/${student.id}`, {
+                                                        method: 'PATCH',
+                                                        headers: { 'Authorization': `Bearer ${token}` }
+                                                    });
+                                                    if (res.ok) {
+                                                        setMessage("Salle mise à jour !");
+                                                        fetchDetailedProfile(); // Refresh
+                                                        setTimeout(() => setMessage(null), 2000);
+                                                    }
+                                                } catch (err) { console.error(err); }
+                                            }}
+                                        >
+                                            <option value="" className="text-slate-900">-- Salle --</option>
+                                            {classrooms.map(c => (
+                                                <option key={c.id} value={c.id} className="text-slate-900">
+                                                    {c.name} ({c.level})
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <BookOpen size={12} className="absolute left-2.5 top-1.5 text-white/70" />
+                                    </div>
+
                                     <button
                                         onClick={handleAssignExam}
                                         disabled={assigning}
@@ -267,8 +310,8 @@ export const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ student,
                                             <div
                                                 key={badge.id}
                                                 className={`px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-bold transition-all ${badge.earned
-                                                        ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-50'
+                                                    ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400 opacity-50'
                                                     }`}
                                             >
                                                 <span className="text-lg">{badge.icon}</span>

@@ -40,7 +40,9 @@ import {
     Plus,
     Check,
     Edit2,
-    Trash2
+    Trash2,
+    Bell,
+    BookOpen
 } from 'lucide-react';
 import CivicContentManager from './CivicContentManager';
 import QualiopiAuditPanel from './QualiopiAuditPanel';
@@ -57,6 +59,7 @@ import { Portfolio } from './Portfolio';
 import CivicPath from './CivicPath';
 import { CandidateBilling } from './CandidateBilling';
 import { BusinessPerformance } from './BusinessPerformance';
+import ClassroomManagement from './ClassroomManagement';
 
 import {
     ResponsiveContainer,
@@ -69,7 +72,7 @@ import {
     Tooltip
 } from 'recharts';
 
-type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres' | 'admin' | 'civic' | 'audit' | 'profil' | 'messages' | 'coach-calendar' | 'coach-stats' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling' | 'business';
+type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'salles' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres' | 'admin' | 'civic' | 'audit' | 'profil' | 'messages' | 'coach-calendar' | 'coach-stats' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling' | 'business';
 
 export default function OrgAdminDashboard() {
     const { organization, token, logout, user } = useAuth();
@@ -260,7 +263,7 @@ export default function OrgAdminDashboard() {
     const handleGenerate = async () => {
         setGenerating(true);
         try {
-            const res = await fetch('/api/content-lab/generate', {
+            const res = await fetch('http://localhost:3333/content-lab/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -295,6 +298,7 @@ export default function OrgAdminDashboard() {
         { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
         { id: 'equipe', label: 'Gestion d\'Équipe', icon: Users },
         { id: 'cohorte', label: 'Candidats', icon: GraduationCap },
+        { id: 'salles', label: 'Salles de Classe', icon: BookOpen },
         { id: 'bibliotheque', label: 'Bibliothèque', icon: Library },
         { id: 'civic', label: 'Gestion Citoyenneté', icon: Globe },
         { id: 'validations', label: 'Validations', icon: CheckCircle2, count: proofs.length },
@@ -485,6 +489,9 @@ export default function OrgAdminDashboard() {
                                     loading={loading}
                                     teamMembers={teamMembers}
                                 />
+                            )}
+                            {activeTab === 'salles' && (
+                                <ClassroomManagement organization={organization} token={token} />
                             )}
                             {activeTab === 'bibliotheque' && (
                                 <Bibliotheque
@@ -982,7 +989,8 @@ function CreditPack({ title, credits, price, popular }: any) {
 
 function Settings({ settings, setSettings, savingSettings, handleSaveSettings }: any) {
     return (
-        <div className="max-w-2xl mx-auto py-10">
+        <div className="max-w-2xl mx-auto py-10 space-y-8">
+            {/* AI Configuration */}
             <div className="bg-[#1E293B]/50 backdrop-blur-xl rounded-[2.5rem] border border-slate-800 overflow-hidden shadow-xl">
                 <div className="p-10 border-b border-slate-800 bg-gradient-to-r from-slate-800/50 to-transparent text-white">
                     <div className="w-16 h-16 bg-blue-600/20 rounded-2xl flex items-center justify-center text-blue-400 mb-6 border border-blue-500/20">
@@ -1035,6 +1043,62 @@ function Settings({ settings, setSettings, savingSettings, handleSaveSettings }:
                             className="w-full py-4 bg-white text-[#0F172A] font-black rounded-2xl hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-white/5 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {savingSettings ? <Loader2 className="animate-spin" /> : 'Sauvegarder Configuration'}
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            {/* Health Thresholds */}
+            <div className="bg-[#1E293B]/50 backdrop-blur-xl rounded-[2.5rem] border border-slate-800 overflow-hidden shadow-xl">
+                <div className="p-10 border-b border-slate-800 bg-gradient-to-r from-amber-800/20 to-transparent text-white">
+                    <div className="w-16 h-16 bg-amber-600/20 rounded-2xl flex items-center justify-center text-amber-400 mb-6 border border-amber-500/20">
+                        <Bell size={32} />
+                    </div>
+                    <h2 className="text-2xl font-black mb-2">Seuils d'Alerte Santé</h2>
+                    <p className="text-slate-400 font-medium">Personnalisez les seuils de détection pour votre centre.</p>
+                </div>
+                <div className="p-10">
+                    <form onSubmit={handleSaveSettings} className="space-y-8">
+                        <div className="space-y-4">
+                            <label className="block text-xs font-bold uppercase text-slate-500 tracking-widest">Jours d'inactivité (Churn)</label>
+                            <input
+                                type="number"
+                                className="w-full p-4 bg-slate-900 border border-slate-800 rounded-2xl text-white outline-none focus:ring-2 ring-amber-500/50 transition-all"
+                                value={settings.churnDays || 14}
+                                onChange={e => setSettings({ ...settings, churnDays: parseInt(e.target.value) || 14 })}
+                            />
+                            <p className="text-[10px] text-slate-500">Nombre de jours sans activité avant qu'un élève soit considéré "à risque".</p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <label className="block text-xs font-bold uppercase text-slate-500 tracking-widest">Saturation Coach (élèves max)</label>
+                            <input
+                                type="number"
+                                className="w-full p-4 bg-slate-900 border border-slate-800 rounded-2xl text-white outline-none focus:ring-2 ring-amber-500/50 transition-all"
+                                value={settings.coachSaturation || 15}
+                                onChange={e => setSettings({ ...settings, coachSaturation: parseInt(e.target.value) || 15 })}
+                            />
+                            <p className="text-[10px] text-slate-500">Nombre maximum d'élèves par coach avant alerte.</p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <label className="block text-xs font-bold uppercase text-slate-500 tracking-widest">Seuil Crédit Critique (%)</label>
+                            <input
+                                type="number"
+                                step="1"
+                                className="w-full p-4 bg-slate-900 border border-slate-800 rounded-2xl text-white outline-none focus:ring-2 ring-amber-500/50 transition-all"
+                                value={(settings.creditThreshold || 0.1) * 100}
+                                onChange={e => setSettings({ ...settings, creditThreshold: (parseFloat(e.target.value) || 10) / 100 })}
+                            />
+                            <p className="text-[10px] text-slate-500">Pourcentage du quota mensuel en dessous duquel votre centre est "critique".</p>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={savingSettings}
+                            className="w-full py-4 bg-amber-500 text-black font-black rounded-2xl hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-amber-500/10 disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {savingSettings ? <Loader2 className="animate-spin" /> : 'Sauvegarder Seuils'}
                         </button>
                     </form>
                 </div>

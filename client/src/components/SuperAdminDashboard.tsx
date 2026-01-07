@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
     Building2,
@@ -13,6 +14,10 @@ import {
     X,
     Lock as LockIcon,
     UserPlus,
+    Users,
+    Plus,
+    Edit2,
+    Save,
     Zap,
     BarChart3,
     AlertCircle,
@@ -25,8 +30,28 @@ import {
     Database,
     Cpu,
     Download,
-    Eye
+    Eye,
+    BookOpen,
+    Trophy,
+    Award,
+    PenTool,
+    Mic,
+    Flame,
+    Megaphone,
+    Send,
+    Briefcase,
+    FlaskConical,
+    Landmark,
+    Calendar,
+    DollarSign,
+    Activity
 } from 'lucide-react';
+import GlobalAgenda from './GlobalAgenda';
+import GlobalFinance from './GlobalFinance';
+import GlobalCoaches from './GlobalCoaches';
+import GlobalParcours from './GlobalParcours';
+import GlobalHealthDashboard from './GlobalHealthDashboard';
+import ClassroomManagement from './ClassroomManagement';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ResponsiveContainer,
@@ -38,7 +63,12 @@ import {
     Tooltip,
     BarChart,
     Bar,
-    Cell
+    Cell,
+    Radar,
+    RadarChart,
+    PolarGrid,
+    PolarAngleAxis,
+    PolarRadiusAxis
 } from 'recharts';
 
 interface Organization {
@@ -117,10 +147,11 @@ import ContractManagement from './ContractManagement';
 import NotificationCenter from './NotificationCenter';
 
 
-type TabType = 'dashboard' | 'orgs' | 'users' | 'ai' | 'logs' | 'contracts' | 'settings';
+type TabType = 'dashboard' | 'orgs' | 'users' | 'ai' | 'logs' | 'contracts' | 'library' | 'settings' | 'agenda' | 'finance' | 'coaches' | 'parcours' | 'health';
 
 export default function SuperAdminDashboard() {
     const { token, logout } = useAuth();
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<TabType>('dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -132,10 +163,41 @@ export default function SuperAdminDashboard() {
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
     const [isLoading, setIsLoading] = useState(true);
+    const [settings, setSettings] = useState({ maintenance_mode: false, ai_unit_cost: 0.015 });
+
+    const fetchSettings = async () => {
+        try {
+            const res = await fetch('http://localhost:3333/admin/settings', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) setSettings(await res.json());
+        } catch (error) {
+            console.error("Error fetching settings:", error);
+        }
+    };
+
+    const updateSetting = async (key: string, value: any, type: string) => {
+        try {
+            const res = await fetch(`http://localhost:3333/admin/settings/${key}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ value, type })
+            });
+            if (res.ok) {
+                setSettings(prev => ({ ...prev, [key]: value }));
+            }
+        } catch (error) {
+            console.error("Error updating setting:", error);
+        }
+    };
 
     useEffect(() => {
         const fetchData = async () => {
             if (!token) return;
+            console.log("SuperAdminDashboard mounting", { token: !!token });
             setIsLoading(true);
             try {
                 const [statsRes, orgsRes, usersRes, sessionsRes, aiRes, logsRes] = await Promise.all([
@@ -155,7 +217,12 @@ export default function SuperAdminDashboard() {
                 if (logsRes.ok) setAuditLogs(await logsRes.json());
             } catch (error) {
                 console.error("Dashboard error:", error);
+                // alert("Erreur de connexion au serveur. Vérifiez que le backend est accessible.");
             } finally {
+                // Assuming fetchAuditLogs is meant to be setAuditLogs, which is already done above.
+                // If there's a separate fetchAuditLogs function, it should be defined.
+                // For now, I'll add fetchSettings as requested.
+                fetchSettings();
                 setIsLoading(false);
             }
         };
@@ -186,11 +253,19 @@ export default function SuperAdminDashboard() {
 
     const menuItems = [
         { id: 'dashboard', label: 'Vue d\'ensemble', icon: LayoutDashboard },
+        { id: 'health', label: 'Santé Plateforme', icon: Activity },
+        { id: 'parcours', label: 'Suivi Parcours', icon: TrendingUp },
+        { id: 'coaches', label: 'Suivi Formateurs', icon: Users },
+        { id: 'agenda', label: 'Agenda Global', icon: Calendar },
+        { id: 'finance', label: 'Finance', icon: DollarSign },
         { id: 'orgs', label: 'Organismes', icon: Building2 },
         { id: 'users', label: 'Utilisateurs', icon: ShieldCheck },
         { id: 'contracts', label: 'Contrats', icon: History },
+        { id: 'library', label: 'Bibliothèque Globale', icon: BookOpen },
         { id: 'ai', label: 'Observatoire IA', icon: Cpu },
         { id: 'logs', label: 'Audit Logs', icon: Database },
+        { id: 'content-lab', label: 'Content Lab', icon: FlaskConical },
+        { id: 'civic-admin', label: 'Parcours Citoyen', icon: Landmark },
         { id: 'settings', label: 'Configuration', icon: Settings },
     ];
 
@@ -229,7 +304,7 @@ export default function SuperAdminDashboard() {
                     {menuItems.map((item) => (
                         <button
                             key={item.id}
-                            onClick={() => setActiveTab(item.id as TabType)}
+                            onClick={() => ['content-lab', 'civic-admin'].includes(item.id) ? navigate(`/${item.id}`) : setActiveTab(item.id as TabType)}
                             className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 group relative ${activeTab === item.id
                                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
                                 : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
@@ -279,10 +354,17 @@ export default function SuperAdminDashboard() {
                             <Download className="w-5 h-5" />
                             <span className="text-sm font-medium hidden md:block">Export Data</span>
                         </button>
-                        <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700/50">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-xs font-medium">Platform Online</span>
-                        </div>
+                        {settings.maintenance_mode ? (
+                            <div className="flex items-center gap-2 bg-amber-500/20 px-3 py-1.5 rounded-full border border-amber-500/50">
+                                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                                <span className="text-xs font-bold text-amber-400">Maintenance Active</span>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700/50">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                <span className="text-xs font-medium">Platform Online</span>
+                            </div>
+                        )}
                         <NotificationCenter />
                         <Settings className="w-5 h-5 cursor-pointer hover:text-white transition-colors" />
 
@@ -299,6 +381,11 @@ export default function SuperAdminDashboard() {
                             transition={{ duration: 0.2 }}
                         >
                             {activeTab === 'dashboard' && <DashboardOverview stats={stats} sessions={sessions} />}
+                            {activeTab === 'health' && <GlobalHealthDashboard />}
+                            {activeTab === 'parcours' && <GlobalParcours />}
+                            {activeTab === 'coaches' && <GlobalCoaches />}
+                            {activeTab === 'agenda' && <GlobalAgenda />}
+                            {activeTab === 'finance' && <GlobalFinance />}
                             {activeTab === 'orgs' && <OrgManagement
                                 orgs={orgs}
                                 setOrgs={setOrgs}
@@ -314,7 +401,13 @@ export default function SuperAdminDashboard() {
                             {activeTab === 'ai' && <AiMonitoring aiData={aiData} sessions={sessions} />}
                             {activeTab === 'logs' && <AuditLogs logs={auditLogs} />}
                             {activeTab === 'contracts' && <ContractManagement />}
-                            {activeTab === 'settings' && <SystemSettings handleExportData={handleExportData} />}
+                            {activeTab === 'library' && <GlobalLibrary token={token} />}
+                            {activeTab === 'settings' && <SystemSettings
+                                settings={settings}
+                                updateSetting={updateSetting}
+                                handleExportData={handleExportData}
+                                token={token}
+                            />}
                         </motion.div>
                     </AnimatePresence>
                 </div>
@@ -328,7 +421,13 @@ export default function SuperAdminDashboard() {
 // Sub-components
 
 function DashboardOverview({ stats, sessions }: { stats: Stats | null, sessions: ExamSession[] }) {
-    if (!stats) return <SkeletonRows columns={4} />;
+    if (!stats) return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map(i => (
+                <div key={i} className="h-40 bg-slate-900 border border-slate-800 rounded-[2.5rem] animate-pulse" />
+            ))}
+        </div>
+    );
 
     // Prepare data for the chart (grouped by date)
     const chartData = sessions.reduce((acc: any[], session) => {
@@ -439,10 +538,11 @@ function OrgManagement({ orgs, setOrgs, token, isLoading }: any) {
 
     // Org Modal States
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [orgSettings, setOrgSettings] = useState<any | null>(null);
+    const [orgModalTab, setOrgModalTab] = useState<'settings' | 'classrooms'>('settings');
     const [isCreditModalOpen, setIsCreditModalOpen] = useState<{ id: string, name: string } | null>(null);
     const [creditAmount, setCreditAmount] = useState(1000);
     const [newOrg, setNewOrg] = useState({ name: '', slug: '', adminEmail: '', initialCredits: 500, monthlyQuota: 1000 });
-    const [orgSettings, setOrgSettings] = useState<{ id: string, name: string, logoUrl?: string, primaryColor?: string, monthlyQuota: number } | null>(null);
     const [orgTransactions, setOrgTransactions] = useState<{ orgName: string, data: any[] } | null>(null);
 
     const filteredOrgs = orgs.filter((o: any) =>
@@ -612,7 +712,8 @@ function OrgManagement({ orgs, setOrgs, token, isLoading }: any) {
                     <thead className="bg-[#1E293B] text-slate-400 text-xs font-bold uppercase tracking-widest">
                         <tr>
                             <th className="p-6">Organisme</th>
-                            <th className="p-6">Métrique</th>
+                            <th className="p-6">Apprenants</th>
+                            <th className="p-6">Examens / Questions</th>
                             <th className="p-6">Solde Crédits</th>
                             <th className="p-6">Statut</th>
                             <th className="p-6 text-right">Actions</th>
@@ -638,8 +739,14 @@ function OrgManagement({ orgs, setOrgs, token, isLoading }: any) {
                                 </td>
                                 <td className="p-6">
                                     <div className="flex flex-col gap-1">
-                                        <span className="text-sm font-bold text-slate-300">{org._count?.users || 0} utilisateurs</span>
-                                        <span className="text-[10px] text-slate-500 uppercase tracking-wider">{org.createdAt ? new Date(org.createdAt).toLocaleDateString() : '-'}</span>
+                                        <span className="text-sm font-bold text-slate-300">{org._count?.users || 0} inscrits</span>
+                                        <span className="text-[10px] text-slate-500 uppercase tracking-wider">Créé le {org.createdAt ? new Date(org.createdAt).toLocaleDateString() : '-'}</span>
+                                    </div>
+                                </td>
+                                <td className="p-6">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-sm font-bold text-white tracking-widest">{org._count?.examSessions || 0} sessions</span>
+                                        <span className="text-[10px] text-slate-500 uppercase">Bibliothèque: {org._count?.questions || 0} questions</span>
                                     </div>
                                 </td>
                                 <td className="p-6">
@@ -687,23 +794,47 @@ function OrgManagement({ orgs, setOrgs, token, isLoading }: any) {
             </Modal>
 
             {/* Settings Org Modal */}
-            <Modal isOpen={!!orgSettings} onClose={() => setOrgSettings(null)} title="Paramètres Organisme">
+            <Modal isOpen={!!orgSettings} onClose={() => setOrgSettings(null)} title={orgSettings?.name || "Détails Organisme"}>
                 {orgSettings && (
-                    <form onSubmit={handleUpdateOrg} className="space-y-4">
-                        <FormInput label="Nom" value={orgSettings.name} onChange={(e: any) => setOrgSettings({ ...orgSettings, name: e.target.value })} />
-                        <FormInput label="Logo URL" value={orgSettings.logoUrl || ''} onChange={(e: any) => setOrgSettings({ ...orgSettings, logoUrl: e.target.value })} />
-                        <FormInput label="Couleur Primaire (Hex)" value={orgSettings.primaryColor || ''} onChange={(e: any) => setOrgSettings({ ...orgSettings, primaryColor: e.target.value })} />
-                        <FormInput label="Quota Mensuel" type="number" value={orgSettings.monthlyQuota} onChange={(e: any) => setOrgSettings({ ...orgSettings, monthlyQuota: parseInt(e.target.value) })} />
-                        <div className="pt-4 border-t border-slate-800">
-                            <button type="button" onClick={() => handleResetPassword(orgSettings.id, orgSettings.name)} className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg flex items-center justify-center gap-2 mb-4">
-                                <LockIcon size={16} /> Réinitialiser mot de passe admin
+                    <div className="space-y-6">
+                        {/* Tabs */}
+                        <div className="flex gap-2 border-b border-slate-800 pb-2 mb-4">
+                            <button
+                                onClick={() => setOrgModalTab('settings')}
+                                className={`px-4 py-2 font-bold rounded-xl transition-all ${orgModalTab === 'settings' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                            >
+                                <Settings size={16} className="inline mr-2" /> Paramètres
+                            </button>
+                            <button
+                                onClick={() => setOrgModalTab('classrooms')}
+                                className={`px-4 py-2 font-bold rounded-xl transition-all ${orgModalTab === 'classrooms' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                            >
+                                <BookOpen size={16} className="inline mr-2" /> Salles de Classe
                             </button>
                         </div>
-                        <div className="flex justify-end gap-3">
-                            <button type="button" onClick={() => setOrgSettings(null)} className="px-4 py-2 text-slate-400 hover:text-white">Fermer</button>
-                            <button type="submit" className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold">Sauvegarder</button>
-                        </div>
-                    </form>
+
+                        {orgModalTab === 'settings' ? (
+                            <form onSubmit={handleUpdateOrg} className="space-y-4">
+                                <FormInput label="Nom" value={orgSettings.name} onChange={(e: any) => setOrgSettings({ ...orgSettings, name: e.target.value })} />
+                                <FormInput label="Logo URL" value={orgSettings.logoUrl || ''} onChange={(e: any) => setOrgSettings({ ...orgSettings, logoUrl: e.target.value })} />
+                                <FormInput label="Couleur Primaire (Hex)" value={orgSettings.primaryColor || ''} onChange={(e: any) => setOrgSettings({ ...orgSettings, primaryColor: e.target.value })} />
+                                <FormInput label="Quota Mensuel" type="number" value={orgSettings.monthlyQuota} onChange={(e: any) => setOrgSettings({ ...orgSettings, monthlyQuota: parseInt(e.target.value) })} />
+                                <div className="pt-4 border-t border-slate-800">
+                                    <button type="button" onClick={() => handleResetPassword(orgSettings.id, orgSettings.name)} className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg flex items-center justify-center gap-2 mb-4">
+                                        <LockIcon size={16} /> Réinitialiser mot de passe admin
+                                    </button>
+                                </div>
+                                <div className="flex justify-end gap-3">
+                                    <button type="button" onClick={() => setOrgSettings(null)} className="px-4 py-2 text-slate-400 hover:text-white">Fermer</button>
+                                    <button type="submit" className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold">Sauvegarder</button>
+                                </div>
+                            </form>
+                        ) : (
+                            <div className="min-h-[400px]">
+                                <ClassroomManagement organization={orgSettings} token={token} />
+                            </div>
+                        )}
+                    </div>
                 )}
             </Modal>
 
@@ -757,6 +888,7 @@ function UserManagement({ users, setUsers, token, isLoading }: any) {
     const [editingUser, setEditingUser] = useState<PlatformUser | null>(null);
     const [userEditForm, setUserEditForm] = useState({ name: '', email: '', role: '' });
     const [viewingUserProfile, setViewingUserProfile] = useState<any | null>(null);
+    const [isProfileLoading, setIsProfileLoading] = useState(false);
 
     const filteredUsers = users.filter((u: any) =>
         (u.name?.toLowerCase() || '').includes(localSearch.toLowerCase()) ||
@@ -802,16 +934,28 @@ function UserManagement({ users, setUsers, token, isLoading }: any) {
     };
 
     const openCandidateProfile = async (userId: string) => {
+        setIsProfileLoading(true);
+        setViewingUserProfile({}); // Non-null to open modal
+
         try {
-            const response = await fetch(`http://localhost:3333/admin/users/${userId}/profile`, {
+            const url = `http://localhost:3333/admin/users/${userId}/profile`;
+
+            const response = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+
             if (response.ok) {
                 const profile = await response.json();
                 setViewingUserProfile(profile);
+            } else {
+                setViewingUserProfile(null);
+                alert("Erreur lors de la récupération du profil.");
             }
         } catch (error) {
             console.error("Profile fetch error:", error);
+            setViewingUserProfile(null);
+        } finally {
+            setIsProfileLoading(false);
         }
     };
 
@@ -961,44 +1105,273 @@ function UserManagement({ users, setUsers, token, isLoading }: any) {
 
             {/* User Profile Modal */}
             <Modal isOpen={!!viewingUserProfile} onClose={() => setViewingUserProfile(null)} title="Profil Utilisateur">
-                {viewingUserProfile ? (
-                    <div className="space-y-6">
-                        <div className="p-6 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center gap-4">
-                            <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-2xl font-bold text-white">
+                {isProfileLoading ? (
+                    <div className="p-12 text-center">
+                        <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
+                        <p className="text-slate-400 font-medium">Récupération du profil...</p>
+                    </div>
+                ) : viewingUserProfile?.id ? (
+                    <div className="space-y-8">
+                        {/* Header */}
+                        <div className="flex items-center gap-6 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-800">
+                            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-3xl font-black text-white shadow-xl shadow-blue-500/20">
                                 {((viewingUserProfile.name || viewingUserProfile.email) || '?')[0]?.toUpperCase()}
                             </div>
-                            <div>
-                                <h3 className="text-xl font-bold dark:text-white">{viewingUserProfile.name}</h3>
-                                <p className="text-slate-400">{viewingUserProfile.email}</p>
-                                <span className="inline-block mt-2 px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">{viewingUserProfile.role}</span>
+                            <div className="flex-1">
+                                <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-1">{viewingUserProfile.name}</h3>
+                                <p className="text-slate-500 font-medium mb-3">{viewingUserProfile.email}</p>
+                                <div className="flex gap-2">
+                                    <span className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 uppercase tracking-wider">
+                                        {viewingUserProfile.role}
+                                    </span>
+                                    {viewingUserProfile.organization && (
+                                        <span className="px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-xs font-bold text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800 uppercase tracking-wider">
+                                            {viewingUserProfile.organization.name}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
-                        <div>
-                            <h4 className="font-bold text-slate-900 dark:text-white mb-4">Examens Récents</h4>
-                            <div className="space-y-3">
-                                {viewingUserProfile.ExamSession && viewingUserProfile.ExamSession.length > 0 ? viewingUserProfile.ExamSession.map((s: any) => (
-                                    <div key={s.id} className="p-4 border border-slate-100 dark:border-slate-700 rounded-xl flex justify-between items-center">
-                                        <div>
-                                            <div className="font-bold dark:text-white">Session {new Date(s.createdAt).toLocaleDateString()}</div>
-                                            <div className="text-xs text-slate-400">Score: {s.score || '-'}%</div>
-                                        </div>
-                                        <div className={`px-2 py-1 rounded text-xs font-bold ${s.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
-                                            {s.status}
-                                        </div>
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                                    <Trophy size={24} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Score Moyen</p>
+                                    <div className="text-2xl font-black text-slate-900 dark:text-white leading-none">
+                                        {viewingUserProfile.stats?.averageScore || '-'} <span className="text-xs text-slate-400 font-medium">/ 699</span>
                                     </div>
-                                )) : <p className="text-slate-500 italic">Aucun examen passé.</p>}
+                                </div>
+                            </div>
+                            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                                    <Award size={24} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Sessions</p>
+                                    <div className="text-2xl font-black text-slate-900 dark:text-white leading-none">
+                                        {viewingUserProfile.stats?.totalExams || 0}
+                                    </div>
+                                </div>
                             </div>
                         </div>
+
+                        {/* Gamification & Skills Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Gamification Card */}
+                            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm space-y-6">
+                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                    <Zap size={14} className="text-amber-500" /> Progression & Série
+                                </h4>
+
+                                <div className="space-y-4">
+                                    {/* XP */}
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-end">
+                                            <p className="text-xs font-bold text-slate-500">Expérience (XP)</p>
+                                            <p className="text-xs font-black text-slate-900 dark:text-white">{viewingUserProfile.gamification?.xp || 0} XP</p>
+                                        </div>
+                                        <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-1000"
+                                                style={{ width: `${Math.min(100, ((viewingUserProfile.gamification?.xp || 0) / 1000) * 100)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Streak */}
+                                    <div className="flex items-center gap-4 bg-orange-50 dark:bg-orange-900/10 p-4 rounded-2xl border border-orange-100 dark:border-orange-900/30">
+                                        <div className={`p-2 rounded-full ${viewingUserProfile.gamification?.streak > 0 ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                                            <Flame size={20} className={viewingUserProfile.gamification?.streak > 0 ? 'fill-current' : ''} />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-black text-orange-800 dark:text-orange-400 uppercase">Série Actuelle</p>
+                                            <p className="text-xl font-black text-orange-900 dark:text-orange-300">{viewingUserProfile.gamification?.streak || 0} Jours</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Badges Preview */}
+                                    <div className="space-y-3">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Derniers Badges</p>
+                                        <div className="flex gap-2">
+                                            {viewingUserProfile.gamification?.badges?.slice(0, 4).map((ub: any) => (
+                                                <div key={ub.id} className="w-10 h-10 rounded-full flex items-center justify-center border-2 shadow-sm" style={{ backgroundColor: `${ub.badge.color}10`, borderColor: `${ub.badge.color}30`, color: ub.badge.color }}>
+                                                    {ub.badge.icon === 'Zap' && <Zap size={16} />}
+                                                    {ub.badge.icon === 'Mic' && <Mic size={16} />}
+                                                    {ub.badge.icon === 'Flame' && <Flame size={16} />}
+                                                    {ub.badge.icon === 'PenTool' && <PenTool size={16} />}
+                                                </div>
+                                            ))}
+                                            {(!viewingUserProfile.gamification?.badges || viewingUserProfile.gamification.badges.length === 0) && (
+                                                <p className="text-xs text-slate-400 italic">Aucun badge débloqué</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Skills Radar */}
+                            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col">
+                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4">
+                                    Profil Compétences
+                                </h4>
+                                <div className="h-[200px] w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <RadarChart cx="50%" cy="50%" outerRadius="70%" data={[
+                                            { subject: 'CO', A: viewingUserProfile.stats?.breakdown?.CO || 0 },
+                                            { subject: 'CE', A: viewingUserProfile.stats?.breakdown?.CE || 0 },
+                                            { subject: 'EO', A: viewingUserProfile.stats?.breakdown?.EO || 0 },
+                                            { subject: 'EE', A: viewingUserProfile.stats?.breakdown?.EE || 0 },
+                                            { subject: 'LU', A: (viewingUserProfile.stats?.breakdown?.CE || 0) * 0.9 },
+                                        ]}>
+                                            <PolarGrid stroke="#e2e8f0" />
+                                            <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
+                                            <PolarRadiusAxis angle={30} domain={[0, 699]} tick={false} axisLine={false} />
+                                            <Radar
+                                                name="Compétences"
+                                                dataKey="A"
+                                                stroke="#4f46e5"
+                                                strokeWidth={2}
+                                                fill="#4f46e5"
+                                                fillOpacity={0.3}
+                                            />
+                                        </RadarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Secondary Info Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Coach Info */}
+                            {viewingUserProfile.coach && (
+                                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Coach Assigné</h4>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white text-xl font-black">
+                                            {viewingUserProfile.coach.name[0]}
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-slate-900 dark:text-white leading-none mb-1">{viewingUserProfile.coach.name}</p>
+                                            <p className="text-xs text-slate-500">{viewingUserProfile.coach.email}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Prerequisites Status */}
+                            <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Objectif & Prérequis</h4>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center bg-white dark:bg-slate-900/50 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase pl-2">Objectif</span>
+                                        <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 pr-2">{viewingUserProfile.objective || 'Non spécifié'}</span>
+                                    </div>
+                                    <div className={`flex justify-between items-center p-2 rounded-xl border ${viewingUserProfile.prerequisites?.verified ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-amber-50 border-amber-100 text-amber-600'}`}>
+                                        <div className="flex items-center gap-2 pl-2">
+                                            {viewingUserProfile.prerequisites?.verified ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Dossier</span>
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest pr-2">{viewingUserProfile.prerequisites?.verified ? 'Vérifié' : 'À Vérifier'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Portfolio / Offline Proofs */}
+                        {viewingUserProfile.portfolio && viewingUserProfile.portfolio.length > 0 && (
+                            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm">
+                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2 text-slate-400">
+                                    <PenTool size={16} /> Portfolio / Journal de Bord
+                                </h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {viewingUserProfile.portfolio.map((proof: any) => (
+                                        <div key={proof.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 group hover:shadow-md transition-all">
+                                            <p className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1 mb-1">{proof.title}</p>
+                                            <div className="flex justify-between items-center">
+                                                <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-md text-[9px] font-black uppercase tracking-widest">{proof.type}</span>
+                                                <span className="text-[9px] text-slate-400">{new Date(proof.createdAt).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Recent Activity */}
+                        <div>
+                            <h4 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                                <History size={18} className="text-slate-400" />
+                                Activité Récente
+                            </h4>
+                            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden">
+                                {viewingUserProfile.examSessions?.slice(0, 3).map((s: any) => (
+                                    <div key={s.id} className="p-4 border-b border-slate-100 dark:border-slate-800 last:border-0 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                        <div>
+                                            <div className="font-bold text-slate-900 dark:text-white text-sm">Session d'examen</div>
+                                            <div className="text-xs text-slate-400">{new Date(s.createdAt).toLocaleDateString()}</div>
+                                        </div>
+                                        <div className={`px-2 py-1 rounded text-[10px] font-bold ${s.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                                            {s.score || s.status}
+                                        </div>
+                                    </div>
+                                ))}
+                                {viewingUserProfile.activityLogs?.slice(0, 3).map((log: any) => (
+                                    <div key={log.id} className="p-4 border-b border-slate-100 dark:border-slate-800 last:border-0 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                        <div>
+                                            <div className="font-bold text-slate-900 dark:text-white text-sm">{log.action}</div>
+                                            <div className="text-xs text-slate-400">{new Date(log.createdAt).toLocaleDateString()}</div>
+                                        </div>
+                                        <div className="text-xs text-slate-400 font-mono">LOG</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Pedagogical Actions */}
+                        {viewingUserProfile.pedagogicalActions && viewingUserProfile.pedagogicalActions.length > 0 && (
+                            <div>
+                                <h4 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                                    <BookOpen size={18} className="text-indigo-500" />
+                                    Suivi Pédagogique
+                                </h4>
+                                <div className="space-y-4 pl-4 border-l-2 border-indigo-100 dark:border-indigo-900/30">
+                                    {viewingUserProfile.pedagogicalActions.map((action: any) => (
+                                        <div key={action.id} className="relative pl-6">
+                                            <div className="absolute -left-[21px] top-0 w-3 h-3 rounded-full bg-indigo-500 border-4 border-white dark:border-slate-900" />
+                                            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider">{action.type}</span>
+                                                    <span className="text-xs text-slate-400">{new Date(action.createdAt).toLocaleDateString()}</span>
+                                                </div>
+                                                <p className="text-sm text-slate-600 dark:text-slate-300 italic">"{action.content}"</p>
+                                                <div className="mt-2 text-xs text-slate-400 font-medium">— {action.coach?.name || 'Coach'}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
-                ) : <SkeletonRows columns={1} />}
+                ) : (
+                    <div className="p-8 text-center text-slate-400">Erreur de chargement.</div>
+                )}
             </Modal>
         </div>
     );
 }
 
 function AiMonitoring({ aiData, sessions }: any) {
-    if (!aiData) return <SkeletonRows columns={3} />;
+    if (!aiData) return (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map(i => (
+                <div key={i} className="h-32 bg-slate-900 border border-slate-800 rounded-3xl animate-pulse" />
+            ))}
+        </div>
+    );
 
     return (
         <div className="max-w-[1600px] mx-auto space-y-8">
@@ -1139,27 +1512,33 @@ function KPICard({ label, value, sub, icon, trend }: any) {
     );
 }
 
-function Modal({ children, onClose, title }: any) {
-    return (
+import { createPortal } from 'react-dom';
+
+function Modal({ isOpen, onClose, title, children }: any) {
+    if (!isOpen) return null;
+
+    return createPortal(
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
             <motion.div
                 initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-800"
+                className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-800 text-slate-900 dark:text-white"
             >
                 <div className="p-8 border-b dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20 transition-colors">
-                    <h3 className="text-xl font-black tracking-tight dark:text-white">{title}</h3>
-                    <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    <h3 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">{title}</h3>
+                    <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500 hover:text-slate-900 dark:text-slate-400">
                         <X size={24} />
                     </button>
                 </div>
-                <div className="p-8">
+                <div className="p-8 max-h-[70vh] overflow-y-auto">
                     {children}
                 </div>
             </motion.div>
-        </motion.div>
+        </motion.div>,
+        document.body
     );
 }
 
@@ -1194,7 +1573,7 @@ function SkeletonRows({ columns }: { columns: number }) {
     );
 }
 
-function SystemSettings({ handleExportData }: { handleExportData: () => void }) {
+function SystemSettings({ settings, updateSetting, handleExportData, token }: { settings: any, updateSetting: (k: string, v: any, t: string) => void, handleExportData: () => void, token: string | null }) {
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 backdrop-blur-xl shadow-2xl">
@@ -1222,29 +1601,44 @@ function SystemSettings({ handleExportData }: { handleExportData: () => void }) 
             </div>
 
             <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden">
-                <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] z-10 flex items-center justify-center">
-                    <div className="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest">
-                        Bientôt disponible
-                    </div>
-                </div>
-
                 <h3 className="text-xl font-bold mb-6 flex items-center gap-3">
                     <Settings className="text-amber-500" />
                     Configuration de la Plateforme
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 opacity-30">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="p-6 bg-slate-800/30 rounded-2xl border border-slate-700/50">
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Coût unitaire IA ($)</label>
-                        <div className="text-2xl font-mono font-bold text-white">0.015</div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-2xl font-mono font-bold text-white">$</span>
+                            <input
+                                type="number"
+                                step="0.001"
+                                value={settings.ai_unit_cost}
+                                onChange={(e) => updateSetting('ai_unit_cost', e.target.value, 'number')}
+                                className="bg-transparent text-2xl font-mono font-bold text-white border-none focus:ring-0 p-0 w-full"
+                            />
+                        </div>
                     </div>
                     <div className="p-6 bg-slate-800/30 rounded-2xl border border-slate-700/50 flex items-center justify-between">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">Mode maintenance</label>
-                        <div className="w-12 h-6 bg-slate-700 rounded-full relative">
-                            <div className="absolute left-1 top-1 w-4 h-4 bg-slate-500 rounded-full" />
+                        <div>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">Mode maintenance</label>
+                            <p className="text-xs text-slate-400 mt-1">Bloque l'accès aux candidats pour maintenance.</p>
                         </div>
+                        <button
+                            onClick={() => updateSetting('maintenance_mode', !settings.maintenance_mode, 'boolean')}
+                            className={`w-12 h-6 rounded-full relative transition-colors ${settings.maintenance_mode ? 'bg-amber-500' : 'bg-slate-700'}`}
+                        >
+                            <motion.div
+                                animate={{ x: settings.maintenance_mode ? 28 : 4 }}
+                                className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-lg"
+                                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                            />
+                        </button>
                     </div>
                 </div>
             </div>
+
+            <GlobalNotificationForm token={token} />
         </div>
     );
 }
@@ -1259,5 +1653,619 @@ function EmptyState({ message }: { message: string }) {
                 </div>
             </td>
         </tr>
+    );
+}
+
+function GlobalNotificationForm({ token }: { token: string | null }) {
+    const [title, setTitle] = useState('');
+    const [content, setContent] = useState('');
+    const [type, setType] = useState('info');
+    const [targetType, setTargetType] = useState<'platform' | 'organization' | 'role'>('platform');
+    const [targetId, setTargetId] = useState('');
+    const [organizations, setOrganizations] = useState<{ id: string, name: string }[]>([]);
+    const [isSending, setIsSending] = useState(false);
+
+    useEffect(() => {
+        if (token) {
+            fetch('http://localhost:3333/admin/organizations', { headers: { 'Authorization': `Bearer ${token}` } })
+                .then(r => r.ok ? r.json() : [])
+                .then(data => setOrganizations(data));
+        }
+    }, [token]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!title || !content) return;
+
+        setIsSending(true);
+        try {
+            const url = 'http://localhost:3333/admin/notifications/global';
+            const payload: any = { title, content, type };
+            if (targetType === 'organization' && targetId) {
+                payload.organizationId = targetId;
+            }
+            if (targetType === 'role' && targetId) {
+                payload.targetRole = targetId;
+            }
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert("Notification envoyée avec succès !");
+                setTitle('');
+                setContent('');
+                setTargetId('');
+                setTargetType('platform');
+            } else {
+                alert("Erreur lors de l'envoi.");
+            }
+        } catch (error) {
+            console.error("Global notification error:", error);
+            alert("Erreur de connexion.");
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    return (
+        <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 backdrop-blur-xl shadow-2xl">
+            <h3 className="text-xl font-bold mb-6 flex items-center gap-3">
+                <Megaphone className="text-emerald-500" />
+                Message Flash Global
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Titre du message</label>
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            placeholder="ex: Maintenance prévue..."
+                            className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Type d'alerte</label>
+                        <select
+                            value={type}
+                            onChange={(e) => setType(e.target.value)}
+                            className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none appearance-none"
+                        >
+                            <option value="info">Information (Bleu)</option>
+                            <option value="warning">Avertissement (Orange)</option>
+                            <option value="success">Succès (Vert)</option>
+                            <option value="error">Urgent (Rouge)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Cible</label>
+                        <select
+                            value={targetType}
+                            onChange={(e) => { setTargetType(e.target.value as any); setTargetId(''); }}
+                            className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none appearance-none"
+                        >
+                            <option value="platform">🌐 Toute la plateforme</option>
+                            <option value="organization">🏢 Une organisation</option>
+                            <option value="role">👤 Un rôle</option>
+                        </select>
+                    </div>
+                </div>
+                {targetType === 'organization' && (
+                    <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Sélectionner l'organisation</label>
+                        <select
+                            value={targetId}
+                            onChange={(e) => setTargetId(e.target.value)}
+                            className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none appearance-none"
+                        >
+                            <option value="">-- Choisir --</option>
+                            {organizations.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                        </select>
+                    </div>
+                )}
+                {targetType === 'role' && (
+                    <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Sélectionner le rôle</label>
+                        <select
+                            value={targetId}
+                            onChange={(e) => setTargetId(e.target.value)}
+                            className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none appearance-none"
+                        >
+                            <option value="">-- Choisir --</option>
+                            <option value="ORG_ADMIN">Admin CFA</option>
+                            <option value="COACH">Formateur</option>
+                            <option value="CANDIDATE">Apprenant</option>
+                        </select>
+                    </div>
+                )}
+                <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Contenu du message</label>
+                    <textarea
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                        rows={3}
+                        placeholder="Décrivez l'annonce ici..."
+                        className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none resize-none"
+                    />
+                </div>
+                <div className="flex justify-end">
+                    <button
+                        type="submit"
+                        disabled={isSending || !title || !content}
+                        className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 font-bold px-8 py-3 rounded-xl flex items-center gap-2 transition-all group"
+                    >
+                        {isSending ? (
+                            <div className="w-5 h-5 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+                        ) : (
+                            <Send className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                        )}
+                        Diffuser le message
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+}
+
+function GlobalLibrary({ token }: { token: string | null }) {
+    const [questions, setQuestions] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [viewMode, setViewMode] = useState<'drafts' | 'published' | 'referentiels'>('drafts');
+    const [filters, setFilters] = useState({ search: '', level: '', topic: '' });
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [editingQuestion, setEditingQuestion] = useState<any | null>(null);
+    const [saving, setSaving] = useState(false);
+
+    // Topics/Sectors state
+    const [topics, setTopics] = useState<{ id: string; name: string }[]>([]);
+    const [sectors, setSectors] = useState<{ id: string; name: string }[]>([]);
+    const [newTopicName, setNewTopicName] = useState('');
+    const [newSectorName, setNewSectorName] = useState('');
+
+    const [formData, setFormData] = useState({
+        level: 'B1',
+        topic: 'Quotidien',
+        text: '',
+        options: ['', '', '', ''],
+        correct: '',
+        explanation: ''
+    });
+
+    const fetchQuestions = async () => {
+        if (!token) return;
+        setLoading(true);
+        try {
+            const query = new URLSearchParams(filters);
+            const res = await fetch(`http://localhost:3333/content-lab/questions?${query}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setQuestions(data);
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchReferentiels = async () => {
+        if (!token) return;
+        try {
+            const [topicsRes, sectorsRes] = await Promise.all([
+                fetch('http://localhost:3333/content-lab/topics', { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch('http://localhost:3333/content-lab/sectors', { headers: { 'Authorization': `Bearer ${token}` } })
+            ]);
+            if (topicsRes.ok) setTopics(await topicsRes.json());
+            if (sectorsRes.ok) setSectors(await sectorsRes.json());
+        } catch (e) { console.error(e); }
+    };
+
+    const handleAddTopic = async () => {
+        if (!token || !newTopicName.trim()) return;
+        await fetch('http://localhost:3333/content-lab/topics', {
+            method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newTopicName.trim() })
+        });
+        setNewTopicName('');
+        fetchReferentiels();
+    };
+
+    const handleDeleteTopic = async (id: string) => {
+        if (!token || !confirm('Supprimer cette thématique ?')) return;
+        await fetch(`http://localhost:3333/content-lab/topics/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+        fetchReferentiels();
+    };
+
+    const handleAddSector = async () => {
+        if (!token || !newSectorName.trim()) return;
+        await fetch('http://localhost:3333/content-lab/sectors', {
+            method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newSectorName.trim() })
+        });
+        setNewSectorName('');
+        fetchReferentiels();
+    };
+
+    const handleDeleteSector = async (id: string) => {
+        if (!token || !confirm('Supprimer ce secteur ?')) return;
+        await fetch(`http://localhost:3333/content-lab/sectors/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+        fetchReferentiels();
+    };
+
+    useEffect(() => {
+        fetchQuestions();
+        fetchReferentiels();
+    }, [token, filters.level]);
+
+    const handleOpenEditor = (question?: any) => {
+        if (question) {
+            setEditingQuestion(question);
+            let opts = [];
+            try { opts = JSON.parse(question.options); } catch { opts = [] }
+            setFormData({
+                level: question.level,
+                topic: question.topic,
+                text: question.questionText || question.content,
+                options: opts.length === 4 ? opts : ['', '', '', ''],
+                correct: question.correctAnswer,
+                explanation: question.explanation || ''
+            });
+        } else {
+            setEditingQuestion(null);
+            setFormData({
+                level: 'B1',
+                topic: 'Quotidien',
+                text: '',
+                options: ['', '', '', ''],
+                correct: '',
+                explanation: ''
+            });
+        }
+        setIsEditorOpen(true);
+    };
+
+    const handleSave = async () => {
+        if (!token) return;
+        setSaving(true);
+        try {
+            const payload = {
+                level: formData.level,
+                topic: formData.topic,
+                questionText: formData.text,
+                content: formData.text,
+                options: JSON.stringify(formData.options),
+                correctAnswer: formData.correct,
+                explanation: formData.explanation
+            };
+            const url = editingQuestion
+                ? `http://localhost:3333/content-lab/questions/${editingQuestion.id}`
+                : `http://localhost:3333/content-lab/questions`;
+            const res = await fetch(url, {
+                method: editingQuestion ? 'PUT' : 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                setIsEditorOpen(false);
+                fetchQuestions();
+            }
+        } catch (e) { console.error(e); } finally { setSaving(false); }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!token || !confirm('Supprimer cette question ?')) return;
+        try {
+            await fetch(`http://localhost:3333/content-lab/questions/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            fetchQuestions();
+        } catch (e) { console.error(e); }
+    };
+
+    const handleValidate = async (id: string) => {
+        if (!token) return;
+        try {
+            await fetch(`http://localhost:3333/content-lab/questions/${id}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isActive: true })
+            });
+            fetchQuestions();
+        } catch (e) { console.error(e); }
+    };
+
+    const filteredQuestions = questions.filter(q => viewMode === 'drafts' ? !q.isActive : q.isActive);
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center mb-8">
+                <div>
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Bibliothèque Globale</h2>
+                    <p className="text-slate-500 text-sm">Gérez le contenu pédagogique de toutes les organisations.</p>
+                </div>
+                <button
+                    onClick={() => handleOpenEditor()}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20"
+                >
+                    <Plus size={20} /> Nouvelle Question Platform
+                </button>
+            </div>
+
+            <div className="bg-[#1E293B] p-4 rounded-xl border border-slate-800 flex gap-4 mb-6 shadow-sm">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-3 text-slate-400" size={20} />
+                    <input
+                        type="text"
+                        placeholder="Rechercher (question, thème, école)..."
+                        value={filters.search}
+                        onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                        onKeyDown={(e) => e.key === 'Enter' && fetchQuestions()}
+                        className="w-full bg-slate-800/50 border border-slate-700/50 pl-10 pr-4 py-2 rounded-lg outline-none focus:ring-2 ring-blue-500 text-white"
+                    />
+                </div>
+                <select
+                    value={filters.level}
+                    onChange={(e) => setFilters({ ...filters, level: e.target.value })}
+                    className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none"
+                >
+                    <option value="">Tous Niveaux</option>
+                    {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+                <div className="p-2 bg-slate-800 border border-slate-700 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors" onClick={fetchQuestions}>
+                    <Filter size={20} className="text-slate-400" />
+                </div>
+            </div>
+
+            <div className="flex gap-2 mb-6">
+                <button
+                    onClick={() => setViewMode('drafts')}
+                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${viewMode === 'drafts' ? 'bg-amber-500 text-slate-900' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                >
+                    📄 Brouillons ({questions.filter(q => !q.isActive).length})
+                </button>
+                <button
+                    onClick={() => setViewMode('published')}
+                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${viewMode === 'published' ? 'bg-emerald-500 text-slate-900' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                >
+                    ✅ Publiées ({questions.filter(q => q.isActive).length})
+                </button>
+                <button
+                    onClick={() => setViewMode('referentiels')}
+                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${viewMode === 'referentiels' ? 'bg-violet-500 text-slate-900' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                >
+                    📚 Référentiels
+                </button>
+            </div>
+
+            {viewMode === 'referentiels' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* TOPICS */}
+                    <div className="bg-[#1E293B] rounded-2xl p-6 border border-slate-800">
+                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-white"><BookOpen size={20} className="text-blue-400" /> Thématiques</h3>
+                        <div className="flex gap-2 mb-4">
+                            <input
+                                type="text"
+                                value={newTopicName}
+                                onChange={(e) => setNewTopicName(e.target.value)}
+                                placeholder="Nouvelle thématique..."
+                                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                                onKeyDown={(e) => e.key === 'Enter' && handleAddTopic()}
+                            />
+                            <button onClick={handleAddTopic} className="bg-blue-600 hover:bg-blue-700 p-2 rounded-lg text-white"><Plus size={18} /></button>
+                        </div>
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {topics.map(t => (
+                                <div key={t.id} className="flex justify-between items-center bg-slate-800/50 px-3 py-2 rounded-lg border border-slate-700/50">
+                                    <span className="text-slate-300 text-sm">{t.name}</span>
+                                    <button onClick={() => handleDeleteTopic(t.id)} className="text-rose-400 hover:text-rose-500"><Trash2 size={14} /></button>
+                                </div>
+                            ))}
+                            {topics.length === 0 && <p className="text-slate-500 text-sm text-center py-4">Aucune thématique.</p>}
+                        </div>
+                    </div>
+                    {/* SECTORS */}
+                    <div className="bg-[#1E293B] rounded-2xl p-6 border border-slate-800">
+                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-white"><Briefcase size={20} className="text-emerald-400" /> Secteurs</h3>
+                        <div className="flex gap-2 mb-4">
+                            <input
+                                type="text"
+                                value={newSectorName}
+                                onChange={(e) => setNewSectorName(e.target.value)}
+                                placeholder="Nouveau secteur..."
+                                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm outline-none"
+                                onKeyDown={(e) => e.key === 'Enter' && handleAddSector()}
+                            />
+                            <button onClick={handleAddSector} className="bg-emerald-600 hover:bg-emerald-700 p-2 rounded-lg text-white"><Plus size={18} /></button>
+                        </div>
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {sectors.map(s => (
+                                <div key={s.id} className="flex justify-between items-center bg-slate-800/50 px-3 py-2 rounded-lg border border-slate-700/50">
+                                    <span className="text-slate-300 text-sm">{s.name}</span>
+                                    <button onClick={() => handleDeleteSector(s.id)} className="text-rose-400 hover:text-rose-500"><Trash2 size={14} /></button>
+                                </div>
+                            ))}
+                            {sectors.length === 0 && <p className="text-slate-500 text-sm text-center py-4">Aucun secteur.</p>}
+                        </div>
+                    </div>
+                </div>
+            ) : loading ? (
+                <div className="text-center py-20 text-slate-500">Chargement de la bibliothèque...</div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredQuestions.map((q) => (
+                        <motion.div
+                            key={q.id}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="bg-[#1E293B] rounded-2xl p-6 border border-slate-800 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
+                        >
+                            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {!q.isActive && (
+                                    <button onClick={() => handleValidate(q.id)} className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-all" title="Valider">
+                                        <CheckCircle2 size={16} />
+                                    </button>
+                                )}
+                                <button onClick={() => handleOpenEditor(q)} className="p-2 bg-blue-500/10 text-blue-400 rounded-lg hover:bg-blue-500 hover:text-white transition-all"><Edit2 size={16} /></button>
+                                <button onClick={() => handleDelete(q.id)} className="p-2 bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all"><Trash2 size={16} /></button>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${q.level.startsWith('A') ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
+                                    q.level.startsWith('B') ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
+                                        'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                                    }`}>
+                                    {q.level}
+                                </span>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-slate-800 text-slate-400 border border-slate-700">
+                                    {q.topic}
+                                </span>
+                                {q.organization && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                        {q.organization.name}
+                                    </span>
+                                )}
+                            </div>
+
+                            <h3 className="font-bold text-slate-100 mb-4 line-clamp-3 leading-relaxed">
+                                {q.questionText || q.content}
+                            </h3>
+
+                            <div className="text-xs text-slate-500 flex items-center gap-2 mt-auto">
+                                <CheckCircle2 size={14} className="text-emerald-500" />
+                                <span className="truncate">{q.correctAnswer}</span>
+                            </div>
+                        </motion.div>
+                    ))}
+                </div>
+            )}
+
+            <AnimatePresence>
+                {isEditorOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-[#1E293B] w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-800"
+                        >
+                            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-[#1E293B]">
+                                <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                                        {editingQuestion ? <Edit2 size={18} className="text-blue-500" /> : <Plus size={18} className="text-blue-500" />}
+                                    </div>
+                                    {editingQuestion ? 'Modérer la question' : 'Création Platform'}
+                                </h2>
+                                <button onClick={() => setIsEditorOpen(false)} className="text-slate-400 hover:text-white transition-colors"><X size={24} /></button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-8 flex gap-8">
+                                <div className="flex-1 space-y-6">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Niveau</label>
+                                            <select
+                                                value={formData.level}
+                                                onChange={(e) => setFormData({ ...formData, level: e.target.value })}
+                                                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 ring-blue-500"
+                                            >
+                                                {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(l => <option key={l} value={l}>{l}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Thème</label>
+                                            <input
+                                                type="text"
+                                                value={formData.topic}
+                                                onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+                                                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 ring-blue-500"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Énoncé</label>
+                                        <textarea
+                                            value={formData.text}
+                                            onChange={(e) => setFormData({ ...formData, text: e.target.value })}
+                                            className="w-full h-32 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 ring-blue-500 resize-none leading-relaxed"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Options</label>
+                                        <div className="space-y-3">
+                                            {formData.options.map((opt, idx) => (
+                                                <div key={idx} className="flex gap-3 items-center">
+                                                    <input
+                                                        type="text"
+                                                        value={opt}
+                                                        onChange={(e) => {
+                                                            const newOpts = [...formData.options];
+                                                            newOpts[idx] = e.target.value;
+                                                            setFormData({ ...formData, options: newOpts });
+                                                        }}
+                                                        className={`flex-1 bg-slate-900 border px-4 py-3 rounded-xl outline-none transition-all ${formData.correct === opt && opt !== '' ? 'border-emerald-500 bg-emerald-500/5 text-white' : 'border-slate-800 text-slate-400 focus:border-blue-500'}`}
+                                                        placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+                                                    />
+                                                    <button
+                                                        onClick={() => setFormData({ ...formData, correct: opt })}
+                                                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${formData.correct === opt && opt !== '' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-500 hover:text-emerald-500'}`}
+                                                    >
+                                                        <CheckCircle2 size={20} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="w-1/3 space-y-4 hidden lg:block">
+                                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                        <Eye size={14} /> Aperçu
+                                    </h3>
+                                    <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 flex flex-col h-full">
+                                        <div className="flex gap-2 mb-4">
+                                            <span className="bg-blue-500/10 text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-500/20">{formData.level}</span>
+                                        </div>
+                                        <p className="font-bold text-slate-100 mb-6 leading-relaxed">
+                                            {formData.text || "..."}
+                                        </p>
+                                        <div className="space-y-2">
+                                            {formData.options.map((opt, idx) => (
+                                                <div key={idx} className={`p-3 rounded-xl text-xs border ${formData.correct === opt && opt !== '' ? 'border-emerald-500 bg-emerald-500/5 text-white' : 'border-slate-800 text-slate-500'}`}>
+                                                    {opt || "..."}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-6 border-t border-slate-800 bg-[#1E293B] flex justify-end gap-3">
+                                <button onClick={() => setIsEditorOpen(false)} className="px-6 py-3 text-slate-400 font-bold hover:text-white transition-colors">Annuler</button>
+                                <button
+                                    onClick={handleSave}
+                                    disabled={saving || !formData.text || !formData.correct}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-blue-500/20 disabled:opacity-50"
+                                >
+                                    {saving ? 'Synchronisation...' : <><Save size={20} /> Valider la Modération</>}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+        </div>
     );
 }

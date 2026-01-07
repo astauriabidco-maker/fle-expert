@@ -3,21 +3,33 @@ import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, Search, Edit2, Trash2, Filter,
-    CheckCircle2, Save, X, Eye
+    CheckCircle2, Save, X, Eye, Settings, Tag, Briefcase
 } from 'lucide-react';
+
+interface Topic {
+    id: string;
+    name: string;
+}
+
+interface Sector {
+    id: string;
+    name: string;
+}
 
 interface Question {
     id: string;
     level: string;
     topic: string;
+    skill: string;
     text: string;     // mapped from questionText
     options: string;  // JSON string
     correct: string;  // mapped from correctAnswer
     explanation: string;
+    organization?: { name: string };
 }
 
 export default function ContentLabPage() {
-    const { token } = useAuth();
+    const { token, user } = useAuth();
     const [questions, setQuestions] = useState<Question[]>([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState({ search: '', level: '', topic: '' });
@@ -27,10 +39,19 @@ export default function ContentLabPage() {
     const [editingQuestion, setEditingQuestion] = useState<Partial<Question> | null>(null);
     const [saving, setSaving] = useState(false);
 
+    // Topics & Sectors Management State (Super Admin only)
+    const [showManagementPanel, setShowManagementPanel] = useState(false);
+    const [topics, setTopics] = useState<Topic[]>([]);
+    const [sectors, setSectors] = useState<Sector[]>([]);
+    const [newTopicName, setNewTopicName] = useState('');
+    const [newSectorName, setNewSectorName] = useState('');
+
     // Form State
     const [formData, setFormData] = useState({
         level: 'B1',
         topic: 'Quotidien',
+        skill: 'READING',
+        sector: 'Général',
         text: '',
         options: ['Option A', 'Option B', 'Option C', 'Option D'],
         correct: 'Option A',
@@ -51,10 +72,12 @@ export default function ContentLabPage() {
                     id: q.id,
                     level: q.level,
                     topic: q.topic,
+                    skill: q.skill || 'READING',
                     text: q.questionText || q.content, // Fallback
                     options: q.options,
                     correct: q.correctAnswer,
-                    explanation: q.explanation
+                    explanation: q.explanation,
+                    organization: q.organization
                 })));
             }
         } catch (error) {
@@ -64,8 +87,81 @@ export default function ContentLabPage() {
         }
     };
 
+    // ========== TOPICS & SECTORS API FUNCTIONS ==========
+    const fetchTopics = async () => {
+        try {
+            const res = await fetch('http://localhost:3333/content-lab/topics', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) setTopics(await res.json());
+        } catch (e) { console.error(e); }
+    };
+
+    const fetchSectors = async () => {
+        try {
+            const res = await fetch('http://localhost:3333/content-lab/sectors', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) setSectors(await res.json());
+        } catch (e) { console.error(e); }
+    };
+
+    const handleCreateTopic = async () => {
+        if (!newTopicName.trim()) return;
+        try {
+            const res = await fetch('http://localhost:3333/content-lab/topics', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newTopicName.trim() })
+            });
+            if (res.ok) {
+                setNewTopicName('');
+                fetchTopics();
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    const handleDeleteTopic = async (id: string) => {
+        if (!confirm('Supprimer ce thème ?')) return;
+        try {
+            await fetch(`http://localhost:3333/content-lab/topics/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            fetchTopics();
+        } catch (e) { console.error(e); }
+    };
+
+    const handleCreateSector = async () => {
+        if (!newSectorName.trim()) return;
+        try {
+            const res = await fetch('http://localhost:3333/content-lab/sectors', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newSectorName.trim() })
+            });
+            if (res.ok) {
+                setNewSectorName('');
+                fetchSectors();
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    const handleDeleteSector = async (id: string) => {
+        if (!confirm('Supprimer ce secteur ?')) return;
+        try {
+            await fetch(`http://localhost:3333/content-lab/sectors/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            fetchSectors();
+        } catch (e) { console.error(e); }
+    };
+
     useEffect(() => {
         fetchQuestions();
+        fetchTopics();
+        fetchSectors();
     }, [token, filters.level]); // Reload on filter change
 
     const handleOpenEditor = (question?: Question) => {
@@ -77,6 +173,8 @@ export default function ContentLabPage() {
             setFormData({
                 level: question.level,
                 topic: question.topic,
+                skill: question.skill || 'READING',
+                sector: 'Général',
                 text: question.text,
                 options: opts.length === 4 ? opts : ['A', 'B', 'C', 'D'],
                 correct: question.correct,
@@ -87,6 +185,8 @@ export default function ContentLabPage() {
             setFormData({
                 level: 'B1',
                 topic: 'Quotidien',
+                skill: 'READING',
+                sector: 'Général',
                 text: '',
                 options: ['', '', '', ''],
                 correct: '',
@@ -155,12 +255,23 @@ export default function ContentLabPage() {
                     <h1 className="text-3xl font-black text-slate-900 dark:text-white mb-2">Content Lab</h1>
                     <p className="text-slate-500">Créez et gérez votre banque de questions pédagogiques.</p>
                 </div>
-                <button
-                    onClick={() => handleOpenEditor()}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all hover:scale-105 shadow-lg shadow-indigo-200 dark:shadow-none"
-                >
-                    <Plus size={20} /> Nouvelle Question
-                </button>
+                <div className="flex gap-3">
+                    {user?.role === 'SUPER_ADMIN' && (
+                        <button
+                            onClick={() => setShowManagementPanel(true)}
+                            className="p-3 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            title="Gérer les Thématiques & Secteurs"
+                        >
+                            <Settings size={20} />
+                        </button>
+                    )}
+                    <button
+                        onClick={() => handleOpenEditor()}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all hover:scale-105 shadow-lg shadow-indigo-200 dark:shadow-none"
+                    >
+                        <Plus size={20} /> Nouvelle Question
+                    </button>
+                </div>
             </header>
 
             {/* Filters */}
@@ -219,6 +330,11 @@ export default function ContentLabPage() {
                                 <span className="px-2 py-1 rounded text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-500">
                                     {q.topic}
                                 </span>
+                                {user?.role === 'SUPER_ADMIN' && q.organization && (
+                                    <span className="px-2 py-1 rounded text-xs font-bold bg-indigo-100 text-indigo-700">
+                                        Org: {q.organization.name}
+                                    </span>
+                                )}
                             </div>
 
                             <h3 className="font-bold text-slate-800 dark:text-white mb-4 line-clamp-3">
@@ -256,7 +372,7 @@ export default function ContentLabPage() {
                                 {/* Left: Form */}
                                 <div className="flex-1 space-y-6">
                                     <div className="flex gap-4">
-                                        <div className="w-1/3">
+                                        <div className="w-1/4">
                                             <label className="block text-sm font-bold text-slate-500 mb-1">Niveau</label>
                                             <select
                                                 value={formData.level}
@@ -268,12 +384,39 @@ export default function ContentLabPage() {
                                         </div>
                                         <div className="flex-1">
                                             <label className="block text-sm font-bold text-slate-500 mb-1">Thème</label>
-                                            <input
-                                                type="text"
+                                            <select
                                                 value={formData.topic}
                                                 onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
                                                 className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg px-4 py-2 outline-none focus:ring-2 ring-indigo-500"
-                                            />
+                                            >
+                                                {topics.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                                                {topics.length === 0 && <option value="Quotidien">Quotidien (Défaut)</option>}
+                                            </select>
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="block text-sm font-bold text-slate-500 mb-1">Secteur</label>
+                                            <select
+                                                value={formData.sector}
+                                                onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
+                                                className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg px-4 py-2 outline-none focus:ring-2 ring-indigo-500"
+                                            >
+                                                <option value="Général">Général</option>
+                                                {sectors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="block text-sm font-bold text-slate-500 mb-1">Compétence</label>
+                                            <select
+                                                value={formData.skill}
+                                                onChange={(e) => setFormData({ ...formData, skill: e.target.value })}
+                                                className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg px-4 py-2 outline-none focus:ring-2 ring-indigo-500"
+                                            >
+                                                <option value="READING">Compréhension Écrite</option>
+                                                <option value="LISTENING">Compréhension Orale</option>
+                                                <option value="WRITING">Expression Écrite</option>
+                                                <option value="SPEAKING">Expression Orale</option>
+                                                <option value="GRAMMAR">Grammaire & Lexique</option>
+                                            </select>
                                         </div>
                                     </div>
 
@@ -341,6 +484,7 @@ export default function ContentLabPage() {
                                             <div className="flex gap-2 mb-4">
                                                 <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-bold">{formData.level}</span>
                                                 <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">{formData.topic}</span>
+                                                <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">{formData.skill === 'READING' ? 'CE' : formData.skill === 'LISTENING' ? 'CO' : formData.skill === 'WRITING' ? 'EE' : formData.skill === 'SPEAKING' ? 'EO' : 'GR'}</span>
                                             </div>
                                             <p className="font-bold text-slate-800 dark:text-white mb-6">
                                                 {formData.text || "Votre question apparaîtra ici..."}
@@ -374,6 +518,100 @@ export default function ContentLabPage() {
                                 >
                                     {saving ? 'Sauvegarde...' : <><Save size={20} /> Enregistrer la question</>}
                                 </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Topics & Sectors Management Modal */}
+            <AnimatePresence>
+                {showManagementPanel && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+                        >
+                            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
+                                <h2 className="text-xl font-bold dark:text-white flex items-center gap-2">
+                                    <Settings size={20} />
+                                    Gestion des Thématiques & Secteurs
+                                </h2>
+                                <button onClick={() => setShowManagementPanel(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+                            </div>
+
+                            <div className="p-6 flex-1 overflow-y-auto max-h-[70vh]">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {/* Topics Section */}
+                                    <div className="space-y-4">
+                                        <h3 className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                                            <Tag size={18} /> Thématiques ({topics.length})
+                                        </h3>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                placeholder="Nouveau thème..."
+                                                value={newTopicName}
+                                                onChange={(e) => setNewTopicName(e.target.value)}
+                                                className="flex-1 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg outline-none focus:ring-2 ring-indigo-500 text-sm"
+                                            />
+                                            <button
+                                                onClick={handleCreateTopic}
+                                                disabled={!newTopicName.trim()}
+                                                className="bg-indigo-600 text-white p-2 rounded-lg disabled:opacity-50 hover:bg-indigo-700"
+                                            >
+                                                <Plus size={20} />
+                                            </button>
+                                        </div>
+                                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                                            {topics.map(t => (
+                                                <div key={t.id} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg group text-sm">
+                                                    <span className="font-medium text-slate-700 dark:text-slate-300">{t.name}</span>
+                                                    <button onClick={() => handleDeleteTopic(t.id)} className="text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {topics.length === 0 && <p className="text-slate-400 text-sm italic text-center py-4">Aucune thématique</p>}
+                                        </div>
+                                    </div>
+
+                                    {/* Sectors Section */}
+                                    <div className="space-y-4">
+                                        <h3 className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                                            <Briefcase size={18} /> Secteurs ({sectors.length})
+                                        </h3>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                placeholder="Nouveau secteur..."
+                                                value={newSectorName}
+                                                onChange={(e) => setNewSectorName(e.target.value)}
+                                                className="flex-1 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg outline-none focus:ring-2 ring-indigo-500 text-sm"
+                                            />
+                                            <button
+                                                onClick={handleCreateSector}
+                                                disabled={!newSectorName.trim()}
+                                                className="bg-indigo-600 text-white p-2 rounded-lg disabled:opacity-50 hover:bg-indigo-700"
+                                            >
+                                                <Plus size={20} />
+                                            </button>
+                                        </div>
+                                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                                            {sectors.map(s => (
+                                                <div key={s.id} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg group text-sm">
+                                                    <span className="font-medium text-slate-700 dark:text-slate-300">{s.name}</span>
+                                                    <button onClick={() => handleDeleteSector(s.id)} className="text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {sectors.length === 0 && <p className="text-slate-400 text-sm italic text-center py-4">Aucun secteur</p>}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </motion.div>
                     </div>

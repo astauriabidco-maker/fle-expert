@@ -32,12 +32,14 @@ export class ContentLabController {
         @Query('topic') topic: string,
         @Query('search') search: string
     ) {
-        return this.contentLabService.getQuestions(req.user.organizationId, { level, topic, search });
+        const orgId = req.user.role === 'SUPER_ADMIN' ? null : req.user.organizationId;
+        return this.contentLabService.getQuestions(orgId, { level, topic, search });
     }
 
     @Get('questions/:id')
     async getQuestion(@Request() req: any, @Param('id') id: string) {
-        return this.contentLabService.getQuestion(id, req.user.organizationId);
+        const orgId = req.user.role === 'SUPER_ADMIN' ? null : req.user.organizationId;
+        return this.contentLabService.getQuestion(id, orgId);
     }
 
     @Post('questions')
@@ -47,12 +49,50 @@ export class ContentLabController {
 
     @Put('questions/:id')
     async updateQuestion(@Request() req: any, @Param('id') id: string, @Body() body: any) {
-        return this.contentLabService.updateQuestion(id, req.user.organizationId, body);
+        const orgId = req.user.role === 'SUPER_ADMIN' ? null : req.user.organizationId;
+        return this.contentLabService.updateQuestion(id, orgId, body);
     }
 
     @Delete('questions/:id')
     async deleteQuestion(@Request() req: any, @Param('id') id: string) {
-        return this.contentLabService.deleteQuestion(id, req.user.organizationId);
+        const orgId = req.user.role === 'SUPER_ADMIN' ? null : req.user.organizationId;
+        return this.contentLabService.deleteQuestion(id, orgId);
+    }
+
+    // ========== TOPIC MANAGEMENT ==========
+    @Get('topics')
+    async getTopics() {
+        return this.contentLabService.getTopics();
+    }
+
+    @Post('topics')
+    @Roles('SUPER_ADMIN')
+    async createTopic(@Body() body: { name: string }) {
+        return this.contentLabService.createTopic(body.name);
+    }
+
+    @Delete('topics/:id')
+    @Roles('SUPER_ADMIN')
+    async deleteTopic(@Param('id') id: string) {
+        return this.contentLabService.deleteTopic(id);
+    }
+
+    // ========== SECTOR MANAGEMENT ==========
+    @Get('sectors')
+    async getSectors() {
+        return this.contentLabService.getSectors();
+    }
+
+    @Post('sectors')
+    @Roles('SUPER_ADMIN')
+    async createSector(@Body() body: { name: string }) {
+        return this.contentLabService.createSector(body.name);
+    }
+
+    @Delete('sectors/:id')
+    @Roles('SUPER_ADMIN')
+    async deleteSector(@Param('id') id: string) {
+        return this.contentLabService.deleteSector(id);
     }
 }
 
