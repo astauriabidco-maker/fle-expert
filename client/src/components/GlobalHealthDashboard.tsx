@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import {
     Activity,
     AlertTriangle,
@@ -58,24 +59,32 @@ export default function GlobalHealthDashboard() {
     const [showSettings, setShowSettings] = useState(false);
     const [settings, setSettings] = useState({ churnDays: 14, coachSaturation: 15, creditThreshold: 0.1 });
     const [saving, setSaving] = useState(false);
-    const token = localStorage.getItem('token');
+    const { token } = useAuth();
 
     useEffect(() => {
-        fetchHealth();
-    }, []);
+        if (token) {
+            fetchHealth();
+        }
+    }, [token]);
 
     const fetchHealth = async () => {
         try {
+            console.log("Fetching health data with token:", token ? "Token present" : "Token missing");
             const res = await fetch('http://localhost:3333/admin/oversight/health', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+
             if (res.ok) {
                 const data = await res.json();
+                console.log("Health data fetched successfully:", data);
                 setHealth(data);
                 if (data.settings) setSettings(data.settings);
+            } else {
+                const errorText = await res.text();
+                console.error(`Fetch health failed with status ${res.status}:`, errorText);
             }
         } catch (error) {
-            console.error("Fetch health error:", error);
+            console.error("Fetch health total failure:", error);
         } finally {
             setLoading(false);
         }
@@ -126,7 +135,7 @@ export default function GlobalHealthDashboard() {
                             onClick={(e) => e.stopPropagation()}
                         >
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-black text-white">Configuration des Seuils</h3>
+                                <h3 className="text-xl font-black text-white">SEUILS D'ALERTE SANTÉ</h3>
                                 <button onClick={() => setShowSettings(false)} className="text-slate-500 hover:text-white transition-colors">
                                     <X size={20} />
                                 </button>

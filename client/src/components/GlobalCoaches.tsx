@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { Search, Calendar, Mail, Building2, Clock } from 'lucide-react';
 
 interface CoachData {
@@ -15,11 +16,13 @@ export default function GlobalCoaches() {
     const [coaches, setCoaches] = useState<CoachData[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const token = localStorage.getItem('token');
+    const { token } = useAuth();
 
     useEffect(() => {
-        fetchCoaches();
-    }, []);
+        if (token) {
+            fetchCoaches();
+        }
+    }, [token]);
 
     const fetchCoaches = async () => {
         try {

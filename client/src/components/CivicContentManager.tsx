@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import {
     Plus,
     Edit2,
@@ -45,15 +46,20 @@ export default function CivicContentManager() {
     const [editingModule, setEditingModule] = useState<CivicModule | null>(null);
     const [editingLesson, setEditingLesson] = useState<{ moduleId: string, lesson: Partial<CivicLesson> } | null>(null);
     const [editingQuestion, setEditingQuestion] = useState<{ moduleId?: string, question: Partial<CivicQuestion> } | null>(null);
+    const { token } = useAuth();
 
     useEffect(() => {
-        fetchModules();
-    }, []);
+        if (token) {
+            fetchModules();
+        }
+    }, [token]);
 
     const fetchModules = async () => {
         setIsLoading(true);
         try {
-            const res = await fetch('http://localhost:3333/civic/modules');
+            const res = await fetch('http://localhost:3333/civic/modules', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             const data = await res.json();
             const parsed = data.map((m: any) => ({
                 ...m,
@@ -86,7 +92,7 @@ export default function CivicContentManager() {
                 method,
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify(editingModule)
             });
@@ -102,7 +108,7 @@ export default function CivicContentManager() {
         try {
             await fetch(`http://localhost:3333/civic/modules/${id}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             fetchModules();
         } catch (err) {
@@ -123,7 +129,7 @@ export default function CivicContentManager() {
                 method,
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify(editingLesson.lesson)
             });
@@ -139,7 +145,7 @@ export default function CivicContentManager() {
         try {
             await fetch(`http://localhost:3333/civic/lessons/${id}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             fetchModules();
         } catch (err) {
@@ -165,7 +171,7 @@ export default function CivicContentManager() {
                 method,
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify(payload)
             });
@@ -181,7 +187,7 @@ export default function CivicContentManager() {
         try {
             await fetch(`http://localhost:3333/civic/questions/${id}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             fetchModules();
         } catch (err) {

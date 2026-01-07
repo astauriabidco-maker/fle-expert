@@ -252,20 +252,30 @@ export default function SuperAdminDashboard() {
 
 
     const menuItems = [
+        { type: 'header', label: 'Tableau de Bord' },
         { id: 'dashboard', label: 'Vue d\'ensemble', icon: LayoutDashboard },
+
+        { type: 'header', label: 'Supervision Globale' },
         { id: 'health', label: 'Santé Plateforme', icon: Activity },
+        { id: 'orgs', label: 'Suivi Organismes', icon: Building2 },
         { id: 'parcours', label: 'Suivi Parcours', icon: TrendingUp },
         { id: 'coaches', label: 'Suivi Formateurs', icon: Users },
         { id: 'agenda', label: 'Agenda Global', icon: Calendar },
         { id: 'finance', label: 'Finance', icon: DollarSign },
-        { id: 'orgs', label: 'Organismes', icon: Building2 },
+
+        { type: 'header', label: 'Gestion Administrative' },
+
         { id: 'users', label: 'Utilisateurs', icon: ShieldCheck },
         { id: 'contracts', label: 'Contrats', icon: History },
+
+        { type: 'header', label: 'Pédagogie & IA' },
         { id: 'library', label: 'Bibliothèque Globale', icon: BookOpen },
-        { id: 'ai', label: 'Observatoire IA', icon: Cpu },
-        { id: 'logs', label: 'Audit Logs', icon: Database },
         { id: 'content-lab', label: 'Content Lab', icon: FlaskConical },
         { id: 'civic-admin', label: 'Parcours Citoyen', icon: Landmark },
+        { id: 'ai', label: 'Observatoire IA', icon: Cpu },
+
+        { type: 'header', label: 'Système' },
+        { id: 'logs', label: 'Audit Logs', icon: Database },
         { id: 'settings', label: 'Configuration', icon: Settings },
     ];
 
@@ -301,26 +311,37 @@ export default function SuperAdminDashboard() {
                 </div>
 
                 <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto overflow-x-hidden">
-                    {menuItems.map((item) => (
-                        <button
-                            key={item.id}
-                            onClick={() => ['content-lab', 'civic-admin'].includes(item.id) ? navigate(`/${item.id}`) : setActiveTab(item.id as TabType)}
-                            className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 group relative ${activeTab === item.id
-                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                                : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
-                                }`}
-                        >
-                            <item.icon className={`w-5 h-5 flex-shrink-0 ${activeTab === item.id ? 'text-white' : 'group-hover:text-blue-400'}`} />
-                            {isSidebarOpen && (
-                                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ml-4 font-medium">
+                    {menuItems.map((item: any, index) => {
+                        if (item.type === 'header') {
+                            return isSidebarOpen ? (
+                                <div key={index} className="px-4 pt-6 pb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
                                     {item.label}
-                                </motion.span>
-                            )}
-                            {!isSidebarOpen && activeTab === item.id && (
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white rounded-l-full" />
-                            )}
-                        </button>
-                    ))}
+                                </div>
+                            ) : <div key={index} className="h-4" />;
+                        }
+
+                        const Icon = item.icon;
+                        return (
+                            <button
+                                key={item.id}
+                                onClick={() => ['content-lab', 'civic-admin'].includes(item.id) ? navigate(`/${item.id}`) : setActiveTab(item.id as TabType)}
+                                className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 group relative ${activeTab === item.id
+                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
+                                    }`}
+                            >
+                                <Icon className={`w-5 h-5 flex-shrink-0 ${activeTab === item.id ? 'text-white' : 'group-hover:text-blue-400'}`} />
+                                {isSidebarOpen && (
+                                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ml-4 font-medium text-sm">
+                                        {item.label}
+                                    </motion.span>
+                                )}
+                                {!isSidebarOpen && activeTab === item.id && (
+                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white rounded-l-full" />
+                                )}
+                            </button>
+                        );
+                    })}
                 </nav>
 
                 <div className="p-4 border-t border-slate-800/50">
@@ -614,7 +635,14 @@ function OrgManagement({ orgs, setOrgs, token, isLoading }: any) {
                     name: orgSettings.name,
                     logoUrl: orgSettings.logoUrl,
                     primaryColor: orgSettings.primaryColor,
-                    monthlyQuota: orgSettings.monthlyQuota
+                    monthlyQuota: orgSettings.monthlyQuota,
+                    settings: {
+                        churnDays: orgSettings.churnDays,
+                        coachSaturation: orgSettings.coachSaturation,
+                        creditThreshold: orgSettings.creditThreshold,
+                        aiProvider: orgSettings.aiProvider,
+                        aiApiKey: orgSettings.aiApiKey
+                    }
                 })
             });
             if (response.ok) {
@@ -766,7 +794,18 @@ function OrgManagement({ orgs, setOrgs, token, isLoading }: any) {
                                         <button onClick={() => setIsCreditModalOpen({ id: org.id, name: org.name })} className="p-2 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-500 rounded-lg transition-colors" title="Ajouter Crédits"><CreditCard size={18} /></button>
                                         <button onClick={() => openOrgTransactions(org.id, org.name)} className="p-2 hover:bg-purple-500/10 text-slate-400 hover:text-purple-500 rounded-lg transition-colors" title="Historique"><History size={18} /></button>
                                         <button onClick={() => toggleOrgStatus(org.id, org.status)} className={`p-2 hover:bg-slate-700 rounded-lg transition-colors ${org.status === 'ACTIVE' ? 'text-rose-400' : 'text-emerald-400'}`} title={org.status === 'ACTIVE' ? "Suspendre" : "Activer"}>{org.status === 'ACTIVE' ? <Ban size={18} /> : <CheckCircle2 size={18} />}</button>
-                                        <button onClick={() => setOrgSettings({ id: org.id, name: org.name, logoUrl: org.logoUrl, primaryColor: org.primaryColor, monthlyQuota: org.monthlyQuota || 1000 })} className="p-2 hover:bg-blue-500/10 text-slate-400 hover:text-blue-500 rounded-lg transition-colors" title="Paramètres"><Settings size={18} /></button>
+                                        <button onClick={() => setOrgSettings({
+                                            id: org.id,
+                                            name: org.name,
+                                            logoUrl: org.logoUrl,
+                                            primaryColor: org.primaryColor,
+                                            monthlyQuota: org.monthlyQuota || 1000,
+                                            churnDays: org.settings?.churnDays || 14,
+                                            coachSaturation: org.settings?.coachSaturation || 15,
+                                            creditThreshold: org.settings?.creditThreshold || 0.1,
+                                            aiProvider: org.settings?.aiProvider || 'openai',
+                                            aiApiKey: org.settings?.aiApiKey || ''
+                                        })} className="p-2 hover:bg-blue-500/10 text-slate-400 hover:text-blue-500 rounded-lg transition-colors" title="Paramètres"><Settings size={18} /></button>
                                         <button onClick={() => handleDeleteOrg(org.id)} className="p-2 hover:bg-red-500/10 text-slate-400 hover:text-red-500 rounded-lg transition-colors" title="Supprimer"><Trash2 size={18} /></button>
                                     </div>
                                 </td>
@@ -819,6 +858,57 @@ function OrgManagement({ orgs, setOrgs, token, isLoading }: any) {
                                 <FormInput label="Logo URL" value={orgSettings.logoUrl || ''} onChange={(e: any) => setOrgSettings({ ...orgSettings, logoUrl: e.target.value })} />
                                 <FormInput label="Couleur Primaire (Hex)" value={orgSettings.primaryColor || ''} onChange={(e: any) => setOrgSettings({ ...orgSettings, primaryColor: e.target.value })} />
                                 <FormInput label="Quota Mensuel" type="number" value={orgSettings.monthlyQuota} onChange={(e: any) => setOrgSettings({ ...orgSettings, monthlyQuota: parseInt(e.target.value) })} />
+                                <div className="grid grid-cols-2 gap-4 border-t border-slate-800 pt-4 mt-4">
+                                    <div className="col-span-2 text-xs font-bold uppercase text-slate-500 tracking-widest mb-2">Seuils d'Alerte Santé</div>
+                                    <FormInput
+                                        label="Jours Inactivité (Churn)"
+                                        type="number"
+                                        value={orgSettings.churnDays || 14}
+                                        onChange={(val: any) => setOrgSettings({ ...orgSettings, churnDays: parseInt(val) || 14 })}
+                                    />
+                                    <FormInput
+                                        label="Saturation Coach (Max)"
+                                        type="number"
+                                        value={orgSettings.coachSaturation || 15}
+                                        onChange={(val: any) => setOrgSettings({ ...orgSettings, coachSaturation: parseInt(val) || 15 })}
+                                    />
+                                    <FormInput
+                                        label="Seuil Crédit Critique (%)"
+                                        type="number"
+                                        value={Math.round((orgSettings.creditThreshold || 0.1) * 100)}
+                                        onChange={(val: any) => setOrgSettings({ ...orgSettings, creditThreshold: (parseFloat(val) || 10) / 100 })}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4 border-t border-slate-800 pt-4 mt-4">
+                                    <div className="col-span-2 text-xs font-bold uppercase text-slate-500 tracking-widest mb-2">Configuration IA</div>
+                                    <div className="col-span-2 flex gap-4 mb-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setOrgSettings({ ...orgSettings, aiProvider: 'openai' })}
+                                            className={`flex-1 py-2 rounded-xl border-2 font-bold transition-all ${orgSettings.aiProvider === 'openai' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400' : 'border-slate-800 text-slate-500'}`}
+                                        >
+                                            OpenAI
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setOrgSettings({ ...orgSettings, aiProvider: 'gemini' })}
+                                            className={`flex-1 py-2 rounded-xl border-2 font-bold transition-all ${orgSettings.aiProvider === 'gemini' ? 'border-blue-500 bg-blue-500/10 text-blue-400' : 'border-slate-800 text-slate-500'}`}
+                                        >
+                                            Gemini
+                                        </button>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <FormInput
+                                            label="Clé API (Optionnelle)"
+                                            type="password"
+                                            placeholder="sk-..."
+                                            value={orgSettings.aiApiKey || ''}
+                                            onChange={(val: any) => setOrgSettings({ ...orgSettings, aiApiKey: val })}
+                                        />
+                                        <p className="text-[10px] text-slate-500 mt-1">Laissez vide pour utiliser la clé globale du système.</p>
+                                    </div>
+                                </div>
                                 <div className="pt-4 border-t border-slate-800">
                                     <button type="button" onClick={() => handleResetPassword(orgSettings.id, orgSettings.name)} className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg flex items-center justify-center gap-2 mb-4">
                                         <LockIcon size={16} /> Réinitialiser mot de passe admin

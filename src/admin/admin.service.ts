@@ -271,6 +271,13 @@ export class AdminService {
     }
 
     async updateOrganization(id: string, data: any) {
+        if (data.settings) {
+            const current = await this.prisma.organization.findUnique({ where: { id }, select: { settings: true } });
+            const currentSettings = (current?.settings as any) || {};
+            // Merge existing settings with new ones
+            data.settings = { ...currentSettings, ...data.settings };
+        }
+
         return await this.prisma.organization.update({
             where: { id },
             data

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
 import {
     Flag,
@@ -50,13 +51,16 @@ export default function CivicPath() {
     const [modules, setModules] = React.useState<Module[]>([]);
     const [userProgress, setUserProgress] = React.useState<any[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
+    const { token } = useAuth();
 
     const fetchData = React.useCallback(async () => {
         try {
             const [modulesRes, progressRes] = await Promise.all([
-                fetch('http://localhost:3333/civic/modules'),
+                fetch('http://localhost:3333/civic/modules', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
                 fetch('http://localhost:3333/civic/progress', {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 })
             ]);
             const modulesData = await modulesRes.json();
@@ -107,11 +111,13 @@ export default function CivicPath() {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [token]);
 
     React.useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        if (token) {
+            fetchData();
+        }
+    }, [fetchData, token]);
 
     const handleQuizComplete = async (score: number, total: number) => {
         setQuizResult({ score, total });
@@ -122,7 +128,7 @@ export default function CivicPath() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
                         moduleId: activeModule,

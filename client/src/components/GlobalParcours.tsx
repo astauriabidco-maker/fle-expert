@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { Search, GraduationCap, Building2, Zap, BarChart3, TrendingUp, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -18,11 +19,13 @@ export default function GlobalParcours() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [levelFilter, setLevelFilter] = useState('');
-    const token = localStorage.getItem('token');
+    const { token } = useAuth();
 
     useEffect(() => {
-        fetchStudents();
-    }, []);
+        if (token) {
+            fetchStudents();
+        }
+    }, [token]);
 
     const fetchStudents = async () => {
         try {
