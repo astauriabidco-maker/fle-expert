@@ -35,9 +35,10 @@ import CandidateProfile from './CandidateProfile';
 import { ErrorBoundary } from './ErrorBoundary';
 import UserMenu from './UserMenu';
 import NotificationCenter from './NotificationCenter';
+import CandidateAttendance from './CandidateAttendance';
 
 
-type DashboardTab = 'overview' | 'path' | 'portfolio' | 'calendar' | 'profile' | 'messages' | 'billing' | 'civic';
+type DashboardTab = 'overview' | 'path' | 'portfolio' | 'calendar' | 'profile' | 'messages' | 'billing' | 'civic' | 'attendance';
 
 const INITIAL_SKILLS = [
     { subject: 'Compréhension Orale', A: 0, fullMark: 100 },
@@ -53,6 +54,7 @@ const CandidateDashboard: React.FC = () => {
     const [skillsData, setSkillsData] = React.useState(INITIAL_SKILLS);
     const [isLoading, setIsLoading] = React.useState(true);
     const [activeTab, setActiveTab] = React.useState<DashboardTab>('path'); // Default to path as it's the main guidance
+    const [toast, setToast] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     // Gamification States
     const [userStats, setUserStats] = React.useState({ xp: 0, streak: 0 });
@@ -244,6 +246,12 @@ const CandidateDashboard: React.FC = () => {
                             className={`px-6 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'messages' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
                         >
                             Messages
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('attendance')}
+                            className={`px-6 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'attendance' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+                        >
+                            📝 Émargement
                         </button>
                         <button
                             onClick={() => setActiveTab('billing')}
@@ -633,8 +641,24 @@ const CandidateDashboard: React.FC = () => {
                         <CandidateBilling />
                     )}
 
+                    {activeTab === 'attendance' && (
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800">
+                            <CandidateAttendance onToast={(type, message) => {
+                                setToast({ type, message });
+                                setTimeout(() => setToast(null), 3000);
+                            }} />
+                        </div>
+                    )}
+
                     {activeTab === 'civic' && (
                         <CivicPath />
+                    )}
+
+                    {/* Toast Notification */}
+                    {toast && (
+                        <div className={`fixed bottom-4 right-4 px-6 py-3 rounded-xl shadow-lg font-medium z-50 ${toast.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+                            {toast.message}
+                        </div>
                     )}
                 </div>
             )}

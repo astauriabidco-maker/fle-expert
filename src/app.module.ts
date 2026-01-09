@@ -27,6 +27,7 @@ import { AIModule } from './ai/ai.module';
 import { CivicModule } from './civic/civic.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ClassroomModule } from './classroom/classroom.module';
+import { SessionsModule } from './sessions/sessions.module';
 
 
 @Module({
@@ -53,7 +54,8 @@ import { ClassroomModule } from './classroom/classroom.module';
     AIModule,
     CivicModule,
     NotificationsModule,
-    ClassroomModule
+    ClassroomModule,
+    SessionsModule
 
   ],
   controllers: [AppController],

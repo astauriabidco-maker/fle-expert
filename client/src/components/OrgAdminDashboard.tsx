@@ -60,6 +60,7 @@ import CivicPath from './CivicPath';
 import { CandidateBilling } from './CandidateBilling';
 import { BusinessPerformance } from './BusinessPerformance';
 import ClassroomManagement from './ClassroomManagement';
+import CoachSessionsManager from './CoachSessionsManager';
 
 import {
     ResponsiveContainer,
@@ -72,7 +73,7 @@ import {
     Tooltip
 } from 'recharts';
 
-type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'salles' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres' | 'admin' | 'civic' | 'audit' | 'profil' | 'messages' | 'coach-calendar' | 'coach-stats' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling' | 'business';
+type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'salles' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres' | 'admin' | 'civic' | 'audit' | 'profil' | 'messages' | 'coach-calendar' | 'coach-stats' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling' | 'business' | 'sessions';
 
 export default function OrgAdminDashboard() {
     const { organization, token, logout, user } = useAuth();
@@ -302,6 +303,7 @@ export default function OrgAdminDashboard() {
         { id: 'bibliotheque', label: 'Bibliothèque', icon: Library },
         { id: 'civic', label: 'Gestion Citoyenneté', icon: Globe },
         { id: 'validations', label: 'Validations', icon: CheckCircle2, count: proofs.length },
+        { id: 'sessions', label: 'Gestion Sessions', icon: Calendar },
         { id: 'propositions', label: 'Devis & Plans', icon: FileText },
         { id: 'business', label: 'Rentabilité & Business', icon: TrendingUp },
         { id: 'rapports', label: 'Rapports & Factures', icon: History },
@@ -628,6 +630,14 @@ export default function OrgAdminDashboard() {
                                     savingSettings={savingSettings}
                                     handleSaveSettings={handleSaveSettings}
                                 />
+                            )}
+                            {activeTab === 'sessions' && (
+                                <div className="bg-[#1E293B]/50 rounded-3xl border border-slate-800 p-8 shadow-sm">
+                                    <CoachSessionsManager onToast={(type, text) => {
+                                        setMessage({ type, text });
+                                        setTimeout(() => setMessage(null), 3000);
+                                    }} />
+                                </div>
                             )}
                         </motion.div>
                     </AnimatePresence>

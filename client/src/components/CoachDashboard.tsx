@@ -17,6 +17,7 @@ import UserMenu from './UserMenu';
 import CoachCalendar from './CoachCalendar';
 import CoachStatsPanel from './CoachStatsPanel';
 import MessagingPanel from './MessagingPanel';
+import CoachSessionsManager from './CoachSessionsManager';
 import { FEEDBACK_TEMPLATES } from '../data/feedbackTemplates';
 
 // Candidate components for learner mode
@@ -86,7 +87,7 @@ const CoachDashboard: React.FC = () => {
 
 
     // UI state
-    const [activeTab, setActiveTab] = useState<'students' | 'corrections' | 'validations' | 'profile' | 'stats' | 'calendar' | 'messages' | 'civic' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling'>('students');
+    const [activeTab, setActiveTab] = useState<'students' | 'corrections' | 'validations' | 'profile' | 'stats' | 'calendar' | 'messages' | 'civic' | 'sessions' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling'>('students');
     const [myStats, setMyStats] = useState<any>(null);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
     const [detailedStudent, setDetailedStudent] = useState<any>(null);
@@ -677,6 +678,7 @@ const CoachDashboard: React.FC = () => {
                     <TabButton active={activeTab === 'validations'} onClick={() => setActiveTab('validations')} label={`Validations(${proofs.length})`} badge={proofs.length > 0} />
                     <TabButton active={activeTab === 'stats'} onClick={() => setActiveTab('stats')} label="Statistiques" />
                     <TabButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} label="Calendrier" />
+                    <TabButton active={activeTab === 'sessions'} onClick={() => setActiveTab('sessions')} label="Sessions" icon={Calendar} />
                     <TabButton active={activeTab === 'messages'} onClick={() => setActiveTab('messages')} label="Messages" badge={unreadMessages > 0} />
                     <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} label="Mon Profil" icon={PenTool} />
                     <TabButton active={activeTab === 'civic'} onClick={() => setActiveTab('civic')} label="Gestion Civique" icon={Globe} />
@@ -1448,6 +1450,13 @@ const CoachDashboard: React.FC = () => {
                 ) : activeTab === 'civic' ? (
                     <div className="bg-[#1E293B]/50 rounded-2xl border border-slate-800 p-6">
                         <CivicContentManager />
+                    </div>
+                ) : activeTab === 'sessions' ? (
+                    <div className="bg-[#1E293B]/50 rounded-2xl border border-slate-800 p-6">
+                        <CoachSessionsManager onToast={(type, message) => {
+                            setToast({ type, message });
+                            setTimeout(() => setToast(null), 3000);
+                        }} />
                     </div>
                 ) : activeTab === 'mypath' ? (
                     <div className="bg-[#1E293B]/50 rounded-2xl border border-slate-800 p-6">

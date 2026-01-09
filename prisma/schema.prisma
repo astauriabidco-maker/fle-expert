@@ -31,6 +31,7 @@ model Organization {
   proposals        TrainingProposal[]
   users            User[]
   classrooms       Classroom[]
+  courseSessions   CourseSession[]
 }
 
 model Classroom {
@@ -46,7 +47,8 @@ model Classroom {
 
   organization   Organization @relation(fields: [organizationId], references: [id])
   coach          User?        @relation("CoachClassrooms", fields: [coachId], references: [id])
-  students       User[]       @relation("StudentClassroom")
+  students        User[]         @relation("StudentClassroom")
+  courseSessions  CourseSession[]
 }
 
 model User {
@@ -100,6 +102,8 @@ model User {
   civicProgress            UserCivicProgress[]
   classroom                Classroom?          @relation("StudentClassroom", fields: [classroomId], references: [id])
   coachedClassrooms        Classroom[]         @relation("CoachClassrooms")
+  coachSessions            CourseSession[]     @relation("CoachSessions")
+  attendances              Attendance[]        @relation("CandidateAttendances")
 }
 
 model CoachAvailability {
@@ -203,6 +207,8 @@ model ExamSession {
   breakdown            String?
   completedAt          DateTime?
   currentQuestionIndex Int?         @default(0)
+  startedAt            DateTime?
+  durationMinutes      Int          @default(60)
   feedback             String?
   responses            String?
   organization         Organization @relation(fields: [organizationId], references: [id])
@@ -409,4 +415,42 @@ model Sector {
   name      String   @unique
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+}
+
+model CourseSession {
+  id              String       @id @default(uuid())
+  coachId         String
+  classroomId     String?
+  organizationId  String
+  title           String
+  description     String?
+  scheduledDate   DateTime
+  startTime       String       // "09:00"
+  endTime         String       // "11:00"
+  durationMinutes Int          // Calculated or set: 120
+  status          String       @default("SCHEDULED") // SCHEDULED, OPEN, COMPLETED, CANCELLED
+  type            String       @default("COURSE")    // COURSE, MOCK_EXAM
+  recurrenceId    String?      // Optional: to group recurring sessions
+  openedAt        DateTime?    // When coach started session
+  closedAt        DateTime?    // When coach ended session
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  coach           User         @relation("CoachSessions", fields: [coachId], references: [id])
+  classroom       Classroom?   @relation(fields: [classroomId], references: [id])
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  attendances     Attendance[]
+}
+
+model Attendance {
+  id            String        @id @default(uuid())
+  sessionId     String
+  candidateId   String
+  signedAt      DateTime      @default(now())
+  signatureData String?       // Optional: base64 signature or "PRESENT"
+
+  session       CourseSession @relation(fields: [sessionId], references: [id])
+  candidate     User          @relation("CandidateAttendances", fields: [candidateId], references: [id])
+
+  @@unique([sessionId, candidateId])
 }

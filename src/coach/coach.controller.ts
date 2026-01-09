@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, Query } from '@nestjs/common';
 import { CoachService } from './coach.service';
+import { AvailabilityService } from './availability.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -8,7 +9,10 @@ import { Roles } from '../common/decorators/roles.decorator';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('COACH', 'ORG_ADMIN', 'SUPER_ADMIN')
 export class CoachController {
-    constructor(private readonly coachService: CoachService) { }
+    constructor(
+        private readonly coachService: CoachService,
+        private readonly availabilityService: AvailabilityService
+    ) { }
 
     @Get('students')
     async getStudents(@Request() req: any) {
@@ -118,12 +122,59 @@ export class CoachController {
 
     @Get('availability')
     async getAvailability(@Request() req: any) {
-        return this.coachService.getAvailability(req.user.id);
+        return this.availabilityService.getCoachAvailability(req.user.id);
     }
 
     @Post('availability')
     async updateAvailability(@Request() req: any, @Body() body: { slots: any[] }) {
-        return this.coachService.updateAvailability(req.user.id, body.slots);
+        return this.availabilityService.createAvailability(req.user.id, body.slots);
+    }
+
+    // Admin managing availability for a specific coach
+    @Get(':id/availability')
+    @Roles('ORG_ADMIN', 'SUPER_ADMIN')
+    async getCoachAvailabilityAdmin(
+        @Param('id') coachId: string,
+        @Query('month') month?: string,
+        @Query('year') year?: string
+    ) {
+        let startDate: Date | undefined;
+        let endDate: Date | undefined;
+
+        if (month && year) {
+            startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+            endDate = new Date(parseInt(year), parseInt(month), 0);
+        }
+
+        return this.availabilityService.getCoachAvailability(coachId, startDate, endDate);
+    }
+
+    @Post(':id/availability/range')
+    @Roles('ORG_ADMIN', 'SUPER_ADMIN')
+    async createCoachAvailabilityRange(
+        @Param('id') coachId: string,
+        @Body() body: {
+            startDate: string,
+            endDate: string,
+            daysOfWeek: number[],
+            startTime: string,
+            endTime: string
+        }
+    ) {
+        return this.availabilityService.createAvailabilityRange(
+            coachId,
+            new Date(body.startDate),
+            new Date(body.endDate),
+            body.daysOfWeek,
+            body.startTime,
+            body.endTime
+        );
+    }
+
+    @Delete(':id/availability/:slotId')
+    @Roles('ORG_ADMIN', 'SUPER_ADMIN')
+    async deleteCoachAvailabilitySlot(@Param('slotId') slotId: string) {
+        return this.availabilityService.deleteSlot(slotId);
     }
 
     @Post('signature')

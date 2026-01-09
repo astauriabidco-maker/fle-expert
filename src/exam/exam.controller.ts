@@ -14,11 +14,22 @@ export class ExamController {
     ) { }
 
     @Post('start')
-    async startExam(@Body() body: { userId: string, organizationId: string }) {
+    async startExam(@Body() body: { userId: string, organizationId: string, type?: string }) {
         const session = await this.examService.startExam(body.userId, body.organizationId);
+
+        // Set startedAt timestamp
+        const updatedSession = await this.prisma.examSession.update({
+            where: { id: session.id },
+            data: {
+                startedAt: new Date(),
+                type: body.type || 'EXAM',
+                durationMinutes: body.type === 'DIAGNOSTIC' ? 15 : 60,
+            }
+        });
+
         return {
             message: "Exam started successfully",
-            session
+            session: updatedSession
         };
     }
 
@@ -116,5 +127,109 @@ export class ExamController {
     @Get('stats/:userId')
     async getStats(@Param('userId') userId: string) {
         return this.examService.getStats(userId);
+    }
+
+    /**
+     * Get full session state for resume and navigation
+     */
+    @Get(':sessionId/state')
+    async getSessionState(@Param('sessionId') sessionId: string) {
+        return this.examService.getSessionState(sessionId);
+    }
+
+    /**
+     * Save answer without advancing (for auto-save and navigation)
+     */
+    @Post(':sessionId/save-answer')
+    async saveAnswer(
+        @Param('sessionId') sessionId: string,
+        @Body() body: { questionId: string, selectedOption: string }
+    ) {
+        return this.examService.saveAnswer(sessionId, body.questionId, body.selectedOption);
+    }
+
+    /**
+     * Log a security violation during the exam
+     */
+    @Post(':sessionId/violation')
+    async logViolation(
+        @Param('sessionId') sessionId: string,
+        @Body() body: { type: string, details?: string, timestamp?: string }
+    ) {
+        // Update session integrity score
+        const session = await this.prisma.examSession.findUnique({
+            where: { id: sessionId }
+        });
+
+        if (!session) {
+            throw new NotFoundException('Session not found');
+        }
+
+        // Increment integrity score (warnings count)
+        const newIntegrityScore = (session.integrityScore || 0) + 1;
+
+        // Build violation log
+        const existingDebugData = session.aiDebugData as any || {};
+        const violations = existingDebugData.violations || [];
+        violations.push({
+            type: body.type,
+            details: body.details,
+            timestamp: body.timestamp || new Date().toISOString()
+        });
+
+        await this.prisma.examSession.update({
+            where: { id: sessionId },
+            data: {
+                integrityScore: newIntegrityScore,
+                integrityStatus: newIntegrityScore >= 3 ? 'SUSPICIOUS' : 'VALID',
+                aiDebugData: { ...existingDebugData, violations }
+            }
+        });
+
+        // Check if should auto-terminate
+        if (newIntegrityScore >= 5) {
+            return { logged: true, shouldTerminate: true, message: 'Maximum violations reached' };
+        }
+
+        return { logged: true, warningsCount: newIntegrityScore };
+    }
+
+    /**
+     * Terminate exam for cheating
+     */
+    @Post(':sessionId/terminate-cheating')
+    async terminateForCheating(
+        @Param('sessionId') sessionId: string,
+        @Body() body: { violations?: any[] }
+    ) {
+        const session = await this.prisma.examSession.findUnique({
+            where: { id: sessionId }
+        });
+
+        if (!session) {
+            throw new NotFoundException('Session not found');
+        }
+
+        if (session.status === 'COMPLETED') {
+            throw new BadRequestException('Session already completed');
+        }
+
+        // Mark as terminated for cheating
+        await this.prisma.examSession.update({
+            where: { id: sessionId },
+            data: {
+                status: 'CHEATING_DETECTED',
+                integrityStatus: 'FAILED',
+                completedAt: new Date(),
+                aiDebugData: {
+                    ...(session.aiDebugData as any || {}),
+                    terminatedForCheating: true,
+                    terminationTimestamp: new Date().toISOString(),
+                    violations: body.violations
+                }
+            }
+        });
+
+        return { terminated: true, reason: 'CHEATING_DETECTED' };
     }
 }

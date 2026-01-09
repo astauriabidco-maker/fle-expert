@@ -46,12 +46,13 @@ import {
     DollarSign,
     Activity
 } from 'lucide-react';
-import GlobalAgenda from './GlobalAgenda';
+// import GlobalAgenda from './GlobalAgenda';
 import GlobalFinance from './GlobalFinance';
 import GlobalCoaches from './GlobalCoaches';
 import GlobalParcours from './GlobalParcours';
 import GlobalHealthDashboard from './GlobalHealthDashboard';
 import ClassroomManagement from './ClassroomManagement';
+import CoachSessionsManager from './CoachSessionsManager';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ResponsiveContainer,
@@ -147,7 +148,7 @@ import ContractManagement from './ContractManagement';
 import NotificationCenter from './NotificationCenter';
 
 
-type TabType = 'dashboard' | 'orgs' | 'users' | 'ai' | 'logs' | 'contracts' | 'library' | 'settings' | 'agenda' | 'finance' | 'coaches' | 'parcours' | 'health';
+type TabType = 'dashboard' | 'orgs' | 'users' | 'ai' | 'logs' | 'contracts' | 'library' | 'settings' | 'agenda' | 'finance' | 'coaches' | 'parcours' | 'health' | 'sessions';
 
 export default function SuperAdminDashboard() {
     const { token, logout } = useAuth();
@@ -164,6 +165,7 @@ export default function SuperAdminDashboard() {
 
     const [isLoading, setIsLoading] = useState(true);
     const [settings, setSettings] = useState({ maintenance_mode: false, ai_unit_cost: 0.015 });
+    const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     const fetchSettings = async () => {
         try {
@@ -260,7 +262,7 @@ export default function SuperAdminDashboard() {
         { id: 'orgs', label: 'Suivi Organismes', icon: Building2 },
         { id: 'parcours', label: 'Suivi Parcours', icon: TrendingUp },
         { id: 'coaches', label: 'Suivi Formateurs', icon: Users },
-        { id: 'agenda', label: 'Agenda Global', icon: Calendar },
+        { id: 'agenda', label: 'Agenda Hub', icon: Calendar },
         { id: 'finance', label: 'Finance', icon: DollarSign },
 
         { type: 'header', label: 'Gestion Administrative' },
@@ -405,7 +407,14 @@ export default function SuperAdminDashboard() {
                             {activeTab === 'health' && <GlobalHealthDashboard />}
                             {activeTab === 'parcours' && <GlobalParcours />}
                             {activeTab === 'coaches' && <GlobalCoaches />}
-                            {activeTab === 'agenda' && <GlobalAgenda />}
+                            {activeTab === 'agenda' && (
+                                <div className="bg-[#1E293B]/50 rounded-3xl border border-slate-800 p-8 shadow-sm">
+                                    <CoachSessionsManager onToast={(type, message) => {
+                                        setToast({ type, message });
+                                        setTimeout(() => setToast(null), 3000);
+                                    }} />
+                                </div>
+                            )}
                             {activeTab === 'finance' && <GlobalFinance />}
                             {activeTab === 'orgs' && <OrgManagement
                                 orgs={orgs}
@@ -432,6 +441,12 @@ export default function SuperAdminDashboard() {
                         </motion.div>
                     </AnimatePresence>
                 </div>
+
+                {toast && (
+                    <div className={`fixed bottom-8 right-8 px-6 py-3 rounded-2xl shadow-2xl font-bold z-[100] animate-in slide-in-from-bottom-4 ${toast.type === 'success' ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-rose-500 text-white shadow-rose-500/20'}`}>
+                        {toast.type === 'success' ? '✅' : '❌'} {toast.message}
+                    </div>
+                )}
             </main>
 
             {/* Existing Modals and Helper Components will be integrated here or as sub-components */}

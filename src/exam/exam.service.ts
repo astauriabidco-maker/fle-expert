@@ -65,8 +65,7 @@ export class ExamService {
         // 1. Deduct Credits
         await this.creditsService.consumeCredits(session.organizationId, EXAM_COST);
 
-        // 2. Real Scoring Logic
-        // Calculate partial points based on question difficulty
+        // 2. Enhanced Scoring Logic
         const POINTS_MAP: Record<string, number> = {
             'A1': 10,
             'A2': 20,
@@ -76,42 +75,133 @@ export class ExamService {
             'C2': 60
         };
 
+        // Helper to determine level from TCF score
+        const getLevelFromScore = (tcfScore: number): string => {
+            if (tcfScore >= 600) return 'C2';
+            if (tcfScore >= 500) return 'C1';
+            if (tcfScore >= 400) return 'B2';
+            if (tcfScore >= 300) return 'B1';
+            if (tcfScore >= 200) return 'A2';
+            return 'A1';
+        };
+
         let rawScore = 0;
-        let answeredCount = 0;
+        let totalMaxScore = 0;
+        let totalCorrect = 0;
+        const skillScores: Record<string, { current: number, max: number, correct: number, total: number }> = {};
+        const questionResults: { questionId: string, isCorrect: boolean, skill: string, level: string }[] = [];
 
         for (const ans of session.answers) {
-            if (ans.isCorrect) {
-                const qLevel = ans.question.level || 'A1';
-                rawScore += (POINTS_MAP[qLevel] || 10);
+            const qLevel = ans.question.level || 'A1';
+            const qPoints = POINTS_MAP[qLevel] || 10;
+            const skill = ans.question.topic || 'Général';
+
+            // Initialize skill stats if not exists
+            if (!skillScores[skill]) {
+                skillScores[skill] = { current: 0, max: 0, correct: 0, total: 0 };
             }
-            answeredCount++;
+
+            totalMaxScore += qPoints;
+            skillScores[skill].max += qPoints;
+            skillScores[skill].total += 1;
+
+            // Track question result
+            questionResults.push({
+                questionId: ans.questionId,
+                isCorrect: ans.isCorrect,
+                skill,
+                level: qLevel
+            });
+
+            if (ans.isCorrect) {
+                rawScore += qPoints;
+                totalCorrect += 1;
+                skillScores[skill].current += qPoints;
+                skillScores[skill].correct += 1;
+            }
         }
 
-        // Normalize score to 0-999 scale for TCF style
-        // Max theoretical points for 15 questions (assuming avg B2) ~ 600 raw
-        // We'll apply a simple multiplier for now + base offset
-        // Base 100 points for participating.
-        const score = 100 + Math.min(899, rawScore * 1.5);
+        // Calculate TCF score
+        const score = totalMaxScore > 0
+            ? Math.round((rawScore / totalMaxScore) * 699)
+            : 0;
 
-        // Determine Level based on standard TCF grid
-        let level = 'A1';
-        if (score >= 200) level = 'A2';
-        if (score >= 300) level = 'B1';
-        if (score >= 400) level = 'B2';
-        if (score >= 500) level = 'C1';
-        if (score >= 600) level = 'C2';
+        // Determine overall level
+        const level = getLevelFromScore(score);
 
-        // 3. Generate Security Hash
+        // 3. Build detailed breakdown
+        const skillsBreakdown: Record<string, {
+            score: number,
+            max: number,
+            percent: number,
+            correct: number,
+            total: number,
+            tcfScore: number,
+            level: string
+        }> = {};
+
+        let strongestSkill = { skill: '', percent: 0 };
+        let weakestSkill = { skill: '', percent: 100 };
+
+        for (const [skill, data] of Object.entries(skillScores)) {
+            const percent = data.max > 0 ? Math.round((data.current / data.max) * 100) : 0;
+            const tcfScore = data.max > 0 ? Math.round((data.current / data.max) * 699) : 0;
+            const skillLevel = getLevelFromScore(tcfScore);
+
+            skillsBreakdown[skill] = {
+                score: data.current,
+                max: data.max,
+                percent,
+                correct: data.correct,
+                total: data.total,
+                tcfScore,
+                level: skillLevel
+            };
+
+            // Track strongest/weakest
+            if (percent > strongestSkill.percent) {
+                strongestSkill = { skill, percent };
+            }
+            if (percent < weakestSkill.percent) {
+                weakestSkill = { skill, percent };
+            }
+        }
+
+        // Build comprehensive breakdown object
+        const breakdown = {
+            skills: skillsBreakdown,
+            summary: {
+                totalCorrect,
+                totalQuestions: session.answers.length,
+                rawScore,
+                maxPossible: totalMaxScore,
+                tcfScore: score,
+                overallLevel: level,
+                accuracyPercent: session.answers.length > 0
+                    ? Math.round((totalCorrect / session.answers.length) * 100)
+                    : 0
+            },
+            analysis: {
+                strongestSkill: strongestSkill.skill || null,
+                strongestPercent: strongestSkill.percent,
+                weakestSkill: weakestSkill.skill || null,
+                weakestPercent: weakestSkill.percent,
+                recommendations: this.generateRecommendations(skillsBreakdown, level)
+            },
+            questionResults
+        };
+
+        // 4. Generate Security Hash
         const scoreHash = this.securityService.generateResultHash(
             session.userId,
             score,
             session.createdAt.toISOString()
         );
 
-        // 4. Update Session
+        // 5. Update Session with breakdown
         const integrityStatus = warningsCount >= 3 ? 'SUSPICIOUS' : 'VALID';
 
-        const updatedSession = await this.prisma.examSession.update({
+        await this.prisma.examSession.update({
             where: { id: sessionId },
             data: {
                 status: 'COMPLETED',
@@ -120,19 +210,22 @@ export class ExamService {
                 scoreHash: scoreHash,
                 integrityScore: warningsCount,
                 integrityStatus: integrityStatus,
+                breakdown: JSON.stringify(breakdown),
+                completedAt: new Date(),
             }
         });
 
-        // 5. Update User's currentLevel and mark diagnostic as complete (if applicable)
+        // 6. Update User's currentLevel
         const oldLevel = session.user.currentLevel;
         await this.prisma.user.update({
             where: { id: session.userId },
             data: {
                 currentLevel: level,
-                hasCompletedDiagnostic: true  // Mark diagnostic as complete for any exam type
+                hasCompletedDiagnostic: true
             }
         });
 
+        // 7. Send notifications for level changes
         if (level !== oldLevel) {
             await this.notificationsService.createNotification(session.userId, {
                 title: 'Félicitations ! 🎉',
@@ -148,14 +241,65 @@ export class ExamService {
             );
         }
 
-
-
         return {
             score: Math.round(score),
             level,
             scoreHash,
-            downloadUrl: `/certificate/download/${sessionId}`
+            downloadUrl: `/certificate/download/${sessionId}`,
+            breakdown: {
+                skills: skillsBreakdown,
+                summary: breakdown.summary,
+                analysis: breakdown.analysis
+            }
         };
+    }
+
+    /**
+     * Generate personalized recommendations based on skill performance
+     */
+    private generateRecommendations(
+        skills: Record<string, { percent: number, level: string }>,
+        overallLevel: string
+    ): string[] {
+        const recommendations: string[] = [];
+
+        for (const [skill, data] of Object.entries(skills)) {
+            if (data.percent < 50) {
+                recommendations.push(`Renforcez votre ${this.getSkillName(skill)} - actuellement à ${data.percent}%`);
+            } else if (data.percent < 70) {
+                recommendations.push(`Continuez à pratiquer ${this.getSkillName(skill)} pour atteindre le niveau supérieur`);
+            }
+        }
+
+        if (recommendations.length === 0) {
+            recommendations.push(`Excellent travail ! Préparez-vous pour le niveau ${this.getNextLevel(overallLevel)}`);
+        }
+
+        return recommendations.slice(0, 3); // Max 3 recommendations
+    }
+
+    /**
+     * Get human-readable skill name
+     */
+    private getSkillName(skill: string): string {
+        const names: Record<string, string> = {
+            'CO': 'Compréhension Orale',
+            'CE': 'Compréhension Écrite',
+            'EO': 'Expression Orale',
+            'EE': 'Expression Écrite',
+            'Grammaire': 'Grammaire',
+            'Vocabulaire': 'Vocabulaire'
+        };
+        return names[skill] || skill;
+    }
+
+    /**
+     * Get next level in progression
+     */
+    private getNextLevel(current: string): string {
+        const progression = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+        const idx = progression.indexOf(current);
+        return idx < progression.length - 1 ? progression[idx + 1] : 'C2';
     }
 
     async startExistingSession(sessionId: string, userId: string) {
@@ -202,20 +346,173 @@ export class ExamService {
 
         // In a real app, we'd aggregate from UserAnswer
         // For now, mock specific skill scores based on the last session
+        // Fetch last session with full answer details for accurate stats
         const lastSession = await this.prisma.examSession.findFirst({
             where: { userId, status: 'COMPLETED' },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            include: {
+                answers: {
+                    include: { question: true }
+                }
+            }
         });
 
         const baseScore = lastSession?.score || 0;
 
+        // Calculate skill breakdown from the last session
+        const skillStats: Record<string, number> = { CO: 0, CE: 0, EO: 0, EE: 0 };
+        const skillCounts: Record<string, number> = { CO: 0, CE: 0, EO: 0, EE: 0 };
+
+        // Default values if no session
+        if (!lastSession) {
+            return { CO: 0, CE: 0, EO: 0, EE: 0, xp: user?.xp || 0, streak: user?.streakCurrent || 0 };
+        }
+
+        const POINTS_MAP: Record<string, number> = { 'A1': 10, 'A2': 20, 'B1': 30, 'B2': 40, 'C1': 50, 'C2': 60 };
+
+        for (const ans of lastSession.answers) {
+            const skill = ans.question.topic || 'CO'; // Default to CO if missing
+            const qPoints = POINTS_MAP[ans.question.level] || 10;
+
+            // Just sum points for now, can be sophisticated later
+            if (skill in skillStats) {
+                skillCounts[skill] += qPoints;
+                if (ans.isCorrect) {
+                    skillStats[skill] += qPoints;
+                }
+            }
+        }
+
+        // Normalize each skill to 699 scale
+        const normalize = (current: number, max: number) => max > 0 ? Math.round((current / max) * 699) : 0;
+
         return {
-            CO: Math.min(699, baseScore + 50),
-            CE: Math.min(699, baseScore + 20),
-            EO: Math.min(699, baseScore - 30),
-            EE: Math.min(699, baseScore + 0),
+            CO: normalize(skillStats.CO, skillCounts.CO) || baseScore, // Fallback to baseScore if 0/0 (e.g. no questions for that skill)
+            CE: normalize(skillStats.CE, skillCounts.CE) || baseScore,
+            EO: normalize(skillStats.EO, skillCounts.EO) || baseScore,
+            EE: normalize(skillStats.EE, skillCounts.EE) || baseScore,
             xp: user?.xp || 0,
             streak: user?.streakCurrent || 0
         };
+    }
+
+    /**
+     * Get full session state for resume/navigation
+     */
+    async getSessionState(sessionId: string) {
+        const session = await this.prisma.examSession.findUnique({
+            where: { id: sessionId },
+            include: {
+                answers: {
+                    select: {
+                        questionId: true,
+                        selectedOption: true,
+                    }
+                }
+            }
+        });
+
+        if (!session) {
+            throw new NotFoundException('Session not found');
+        }
+
+        // Get all questions that have been served to this session (from answers)
+        // For adaptive exams, we don't have a fixed question list upfront.
+        // We need to fetch the questions that have been asked so far.
+        const answeredQuestionIds = session.answers.map(a => a.questionId);
+
+        const questions = await this.prisma.question.findMany({
+            where: { id: { in: answeredQuestionIds } },
+            select: {
+                id: true,
+                questionText: true,
+                options: true,
+                level: true,
+                topic: true,
+            }
+        });
+
+        // Build answers map
+        const answersMap: Record<string, string | null> = {};
+        for (const ans of session.answers) {
+            answersMap[ans.questionId] = ans.selectedOption;
+        }
+
+        // Calculate time remaining
+        let timeRemainingSeconds = session.durationMinutes * 60;
+        if (session.startedAt) {
+            const elapsed = Math.floor((Date.now() - new Date(session.startedAt).getTime()) / 1000);
+            timeRemainingSeconds = Math.max(0, (session.durationMinutes * 60) - elapsed);
+        }
+
+        return {
+            sessionId: session.id,
+            status: session.status,
+            currentQuestionIndex: session.currentQuestionIndex || 0,
+            durationMinutes: session.durationMinutes,
+            startedAt: session.startedAt,
+            timeRemainingSeconds,
+            questions: questions.map(q => ({
+                id: q.id,
+                text: q.questionText,
+                options: q.options,
+                level: q.level,
+                topic: q.topic,
+            })),
+            answers: answersMap,
+        };
+    }
+
+    /**
+     * Save answer without advancing to next question (for auto-save)
+     */
+    async saveAnswer(sessionId: string, questionId: string, selectedOption: string) {
+        const session = await this.prisma.examSession.findUnique({
+            where: { id: sessionId }
+        });
+
+        if (!session) {
+            throw new NotFoundException('Session not found');
+        }
+
+        if (session.status === 'COMPLETED') {
+            throw new BadRequestException('Cannot modify completed exam');
+        }
+
+        // Check if answer already exists
+        const existingAnswer = await this.prisma.userAnswer.findFirst({
+            where: { sessionId, questionId }
+        });
+
+        // Get question for correctness check
+        const question = await this.prisma.question.findUnique({
+            where: { id: questionId }
+        });
+
+        if (!question) {
+            throw new NotFoundException('Question not found');
+        }
+
+        const isCorrect = question.correctAnswer === selectedOption;
+
+        if (existingAnswer) {
+            // Update existing answer
+            await this.prisma.userAnswer.update({
+                where: { id: existingAnswer.id },
+                data: { selectedOption, isCorrect }
+            });
+        } else {
+            // Create new answer
+            await this.prisma.userAnswer.create({
+                data: {
+                    sessionId,
+                    questionId,
+                    selectedOption,
+                    isCorrect,
+                }
+            });
+        }
+
+        return { saved: true };
     }
 }

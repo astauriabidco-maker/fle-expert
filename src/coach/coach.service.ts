@@ -27,12 +27,44 @@ export class CoachService {
                 ? Math.round(sessions.reduce((acc, curr) => acc + (curr.score || 0), 0) / sessions.length)
                 : 0;
 
-            // Mock skills breakdown (until we store it properly in DB)
+            // Calculate real skill breakdown
+            const skillStats: Record<string, number> = { CO: 0, CE: 0, EO: 0, EE: 0 };
+            const skillCounts: Record<string, number> = { CO: 0, CE: 0, EO: 0, EE: 0 };
+            const POINTS_MAP: Record<string, number> = { 'A1': 10, 'A2': 20, 'B1': 30, 'B2': 40, 'C1': 50, 'C2': 60 };
+
+            // We need to fetch answers for the last session to calculate stats
+            // Since we can't easily include deep relations in the initial findMany efficiently for all students,
+            // we will fetch the detailed last session for each student here.
+            // Note: In a high-traffic app, this N+1 query should be optimized.
+            let lastSessionWithAnswers = null;
+            if (lastSession) {
+                lastSessionWithAnswers = await this.prisma.examSession.findUnique({
+                    where: { id: lastSession.id },
+                    include: { answers: { include: { question: true } } }
+                });
+            }
+
+            if (lastSessionWithAnswers) {
+                for (const ans of lastSessionWithAnswers.answers) {
+                    const skill = ans.question.topic || 'CO';
+                    const qPoints = POINTS_MAP[ans.question.level] || 10;
+
+                    if (skill in skillStats) {
+                        skillCounts[skill] += qPoints;
+                        if (ans.isCorrect) {
+                            skillStats[skill] += qPoints;
+                        }
+                    }
+                }
+            }
+
+            const normalize = (current: number, max: number) => max > 0 ? Math.round((current / max) * 100) : 0; // Stats as % for this view logic
+
             const skillsBreakdown = {
-                CO: Math.min(100, (avgScore || 50) + Math.random() * 20 - 10),
-                CE: Math.min(100, (avgScore || 50) + Math.random() * 20 - 10),
-                EO: Math.min(100, (avgScore || 50) + Math.random() * 20 - 10),
-                EE: Math.min(100, (avgScore || 50) + Math.random() * 20 - 10),
+                CO: normalize(skillStats.CO, skillCounts.CO),
+                CE: normalize(skillStats.CE, skillCounts.CE),
+                EO: normalize(skillStats.EO, skillCounts.EO),
+                EE: normalize(skillStats.EE, skillCounts.EE),
             };
 
             return {
@@ -474,17 +506,20 @@ export class CoachService {
         const startDate = new Date(year, month - 1, 1);
         const endDate = new Date(year, month, 0, 23, 59, 59);
 
-        // Calculate hours based on corrections
-        const corrections = await this.prisma.examSession.count({
+        // Calculate hours based on COMPLETED course sessions
+        const sessions = await this.prisma.courseSession.findMany({
             where: {
-                user: { coachId },
-                humanGrade: { not: null },
-                updatedAt: { gte: startDate, lte: endDate }
-            }
+                coachId,
+                status: 'COMPLETED',
+                type: { in: ['COURSE', 'MOCK_EXAM'] },
+                closedAt: { gte: startDate, lte: endDate }
+            },
+            select: { durationMinutes: true }
         });
 
-        // Simple mock: 1 correction = 0.5 hours
-        const hoursCount = corrections * 0.5;
+        const totalMinutes = sessions.reduce((sum, s) => sum + s.durationMinutes, 0);
+        const hoursCount = Math.round((totalMinutes / 60) * 100) / 100; // Round to 2 decimals
+
         const amount = hoursCount * coach.hourlyRate;
         const invoiceNumber = `INV-${year}${month.toString().padStart(2, '0')}-${coach.id.slice(0, 4).toUpperCase()}`;
 
