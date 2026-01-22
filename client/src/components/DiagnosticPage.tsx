@@ -1,15 +1,14 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { CandidateExamRunner } from './CandidateExamRunner';
+import { DiagnosticPlayer } from './DiagnosticPlayer';
 import { motion } from 'framer-motion';
 import { Zap, Target, Clock, ArrowRight, BookOpen, Info } from 'lucide-react';
 
 const DiagnosticPage: React.FC = () => {
-    const { user, token, login, organization } = useAuth();
+    const { user, token } = useAuth();
     const [started, setStarted] = useState(false);
     const [showPedagogicalGuide, setShowPedagogicalGuide] = useState(false);
-    const [warningsCount] = useState(0);
 
     const levels = [
         { id: 'A1', title: 'Découverte', desc: 'Rudiments de la langue. Comprendre et utiliser des expressions familières pour satisfaire des besoins concrets et immédiats.' },
@@ -19,28 +18,25 @@ const DiagnosticPage: React.FC = () => {
         { id: 'C1/C2', title: 'Expert', desc: 'Expertise et Nuances. S’exprimer de façon fluide, structurée et sans effort apparent sur des sujets complexes et des implicites.' },
     ];
 
-    const handleDiagnosticComplete = () => {
-        if (!user || !token || !organization) return;
 
-        const updatedUser = { ...user, hasCompletedDiagnostic: true };
-        login(token, updatedUser, organization);
-
-        setTimeout(() => {
-            window.location.href = '/';
-        }, 500);
-    };
 
     const handleAcceptPrerequisites = async () => {
         if (!token) return;
-        // Simple log for conformity: user viewed and accepted pedagogical prerequisites
-        await fetch(`http://localhost:3333/auth/verify-prerequisites`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ verified: true, type: 'PEDAGOGICAL_ACK' })
-        });
+
+        try {
+            // Simple log for conformity: user viewed and accepted pedagogical prerequisites
+            await fetch(`http://localhost:3333/auth/verify-prerequisites`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ verified: true, type: 'PEDAGOGICAL_ACK' })
+            });
+        } catch (error) {
+            console.error("Failed to sync prerequisites", error);
+            // Non-blocking error
+        }
 
         setShowPedagogicalGuide(false);
         setStarted(true);
@@ -152,26 +148,7 @@ const DiagnosticPage: React.FC = () => {
         );
     }
 
-    return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors">
-            <header className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 p-4 flex justify-between items-center">
-                <h1 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    <Target size={20} className="text-indigo-600" /> Test de Positionnement
-                </h1>
-                <div className="text-sm font-mono bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded border border-indigo-100 dark:border-indigo-800">
-                    Diagnostic Initial
-                </div>
-            </header>
-
-            <main className="flex-grow p-4 sm:p-8 w-full max-w-5xl mx-auto flex flex-col items-center">
-                <CandidateExamRunner
-                    warningsCount={warningsCount}
-                    onExamComplete={handleDiagnosticComplete}
-                    examType="DIAGNOSTIC"
-                />
-            </main>
-        </div>
-    );
+    return <DiagnosticPlayer />;
 };
 
 export default DiagnosticPage;

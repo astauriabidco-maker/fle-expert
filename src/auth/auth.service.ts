@@ -45,7 +45,9 @@ export class AuthService {
             email: user.email,
             sub: user.id,
             role: user.role,
-            organizationId: user.organization?.id || null
+            organizationId: user.organization?.id || null,
+            acquisition: user.acquisition,
+            isPaid: user.isPaid
         };
 
         console.log("[DEBUG] AuthService.login - payload:", JSON.stringify(payload));
@@ -68,6 +70,9 @@ export class AuthService {
                 postalCode: user.postalCode,
                 hasCompletedDiagnostic: user.hasCompletedDiagnostic,
                 hasVerifiedPrerequisites: user.hasVerifiedPrerequisites,
+                acquisition: user.acquisition,
+                isPaid: user.isPaid,
+                refundCode: user.refundCode,
                 coach: user.coach ? {
                     id: user.coach.id,
                     name: user.coach.name,
@@ -85,18 +90,35 @@ export class AuthService {
         return response;
     }
 
-    async register(registrationData: any, token: string) {
-        // 1. Verify token
-        const invitation = await this.prisma.invitation.findUnique({
-            where: { token },
-            include: { organization: true },
-        });
+    async register(registrationData: any, token?: string) {
+        let email = registrationData.email;
+        let organizationId = null;
+        let acquisition = 'DIRECT';
 
-        if (!invitation || new Date() > invitation.expiresAt) {
-            throw new BadRequestException("Invitation invalide ou expirée");
+        // 1. Verify token if provided
+        if (token) {
+            const invitation = await this.prisma.invitation.findUnique({
+                where: { token },
+                include: { organization: true },
+            });
+
+            if (!invitation || new Date() > invitation.expiresAt) {
+                throw new BadRequestException("Invitation invalide ou expirée");
+            }
+            email = invitation.email;
+            organizationId = invitation.organizationId;
+            acquisition = 'ECOLE';
+
+            // Delete invitation (consume token)
+            await this.prisma.invitation.delete({ where: { token } });
+        } else {
+            // Check if email is provided for direct registration
+            if (!email) throw new BadRequestException("Email requis pour l'inscription");
+
+            // Check if user already exists
+            const existingUser = await this.prisma.user.findUnique({ where: { email } });
+            if (existingUser) throw new BadRequestException("Email déjà utilisé");
         }
-
-        // 2. Hash password
         const { hash, salt } = this.security.hashWithSalt(registrationData.password);
         const passwordStored = `${salt}:${hash}`;
 
@@ -107,22 +129,66 @@ export class AuthService {
         // 4. Create user schema
         const user = await this.prisma.user.create({
             data: {
-                email: invitation.email,
+                email: email,
                 name: registrationData.name,
                 password: passwordStored,
                 role: 'CANDIDATE',
-                organizationId: invitation.organizationId,
+                organizationId: organizationId,
+                acquisition: acquisition as any,
                 objective: objective,
                 targetLevel: targetLevel
             } as any,
             include: { organization: true },
         });
 
-        // 5. Delete invitation (consume token)
-        await this.prisma.invitation.delete({ where: { token } });
-
         // 6. Return login payload
         return this.login(user);
+    }
+
+    async createB2CUser(email: string, name: string) {
+        // 1. Check if user already exists
+        const existingUser = await this.prisma.user.findUnique({ where: { email } });
+        if (existingUser) {
+            // If user exists, we just mark as paid (they might have registered before paying)
+            return await this.prisma.user.update({
+                where: { email },
+                data: { isPaid: true }
+            });
+        }
+
+        // 2. Generate random password
+        const tempPassword = Math.random().toString(36).slice(-8);
+        const { hash, salt } = this.security.hashWithSalt(tempPassword);
+        const passwordStored = `${salt}:${hash}`;
+
+        // 3. Generate Refund Code
+        const refundCode = 'REFUND-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+        // 4. Create User
+        const user = await this.prisma.user.create({
+            data: {
+                email,
+                name,
+                password: passwordStored,
+                role: 'CANDIDATE',
+                acquisition: 'DIRECT',
+                isPaid: true,
+                refundCode
+            }
+        });
+
+        console.log(`[B2C] Created user ${email} with password ${tempPassword} and refund code ${refundCode}`);
+        return user;
+    }
+
+    async setPassword(userId: string, newPass: string) {
+        const { hash, salt } = this.security.hashWithSalt(newPass);
+        const passwordStored = `${salt}:${hash}`;
+
+        return await this.prisma.user.update({
+            where: { id: userId },
+            data: { password: passwordStored }
+        });
     }
 
     async registerPartner(data: any) {

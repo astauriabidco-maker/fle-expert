@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UnauthorizedException, UseGuards, Req, Patch } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException, UseGuards, Req, Patch, BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
@@ -21,9 +21,6 @@ export class AuthController {
 
     @Post('register')
     async register(@Body() body: any) {
-        if (!body.token) {
-            throw new UnauthorizedException('Token requis pour l\'inscription');
-        }
         return this.authService.register(body, body.token);
     }
 
@@ -89,5 +86,13 @@ export class AuthController {
 
         const { password, ...safeUser } = updatedUser;
         return { success: true, user: safeUser };
+    }
+
+    @Patch('set-password')
+    @UseGuards(JwtAuthGuard)
+    async setPassword(@Req() req: any, @Body() body: any) {
+        if (!body.password) throw new BadRequestException('Mot de passe requis');
+        await this.authService.setPassword(req.user.id, body.password);
+        return { success: true, message: 'Mot de passe mis à jour' };
     }
 }

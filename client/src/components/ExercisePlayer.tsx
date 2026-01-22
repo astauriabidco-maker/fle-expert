@@ -9,6 +9,7 @@ interface ExercisePlayerProps {
     options: { [key: string]: string } | string[];
     explanation: string;
     correctAnswerKey?: string; // Opt-in correct answer key
+    type?: 'MULTIPLE_CHOICE' | 'EXPRESSION_ORALE';
 }
 
 const ExercisePlayer: React.FC<ExercisePlayerProps> = ({
@@ -17,18 +18,54 @@ const ExercisePlayer: React.FC<ExercisePlayerProps> = ({
     options,
     explanation,
     correctAnswerKey = "A", // Default for demo
+    type = 'MULTIPLE_CHOICE',
 }) => {
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
     const [isValidated, setIsValidated] = useState(false);
     const [isCorrect, setIsCorrect] = useState(false);
     const [activeTab, setActiveTab] = useState<'content' | 'questions'>('content');
+    const [isUploading, setIsUploading] = useState(false);
 
     const optionsList = Array.isArray(options)
         ? options.map((opt, idx) => ({ key: String.fromCharCode(65 + idx), value: opt }))
         : Object.entries(options).map(([key, value]) => ({ key, value }));
 
+    const handleAudioComplete = async (blob: Blob) => {
+        setIsUploading(true);
+        console.log("Uploading audio...", blob.size);
+
+        const formData = new FormData();
+        formData.append('file', blob, 'recording.webm');
+
+        try {
+            // Adjust this URL to your actual backend endpoint
+            const response = await fetch('http://localhost:3333/upload/audio', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) throw new Error('Upload failed');
+
+            const data = await response.json();
+            console.log("Audio uploaded, URL:", data.url);
+            setSelectedOption(data.url);
+        } catch (error) {
+            console.error("Upload error:", error);
+            // Handle error UI if needed
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     const handleValidate = () => {
         if (!selectedOption) return;
+
+        if (type === 'EXPRESSION_ORALE') {
+            setIsValidated(true);
+            setIsCorrect(true); // Always "correct" for submission (or pending)
+            return;
+        }
+
         const correct = selectedOption === correctAnswerKey;
         setIsValidated(true);
         setIsCorrect(correct);
@@ -102,109 +139,118 @@ const ExercisePlayer: React.FC<ExercisePlayerProps> = ({
                         </h2>
 
                         <div className="space-y-3">
-                            {optionsList.map((option) => {
-                                const isSelected = selectedOption === option.key;
-                                const isKeyCorrect = option.key === correctAnswerKey;
+                            <div className="space-y-3">
+                                {type === 'EXPRESSION_ORALE' ? (
+                                    <div className="flex flex-col items-center gap-6 py-6">
+                                        <DiagnosticVoiceRecorder onRecordingComplete={handleAudioComplete} />
+                                        {isUploading && <p className="text-sm font-bold text-indigo-500 animate-pulse">Envoi de l'enregistrement...</p>}
+                                    </div>
+                                ) : (
+                                    optionsList.map((option) => {
+                                        const isSelected = selectedOption === option.key;
+                                        const isKeyCorrect = option.key === correctAnswerKey;
 
-                                let stateStyles = "border-slate-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-slate-50 dark:hover:bg-slate-800/50";
-                                let icon = null;
+                                        let stateStyles = "border-slate-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-slate-50 dark:hover:bg-slate-800/50";
+                                        let icon = null;
 
-                                if (isValidated) {
-                                    if (isKeyCorrect) {
-                                        stateStyles = "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-900 dark:text-emerald-300 font-bold ring-2 ring-emerald-500 ring-offset-2 dark:ring-offset-slate-900";
-                                        icon = <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />;
-                                    } else if (isSelected && !isKeyCorrect) {
-                                        stateStyles = "border-rose-300 bg-rose-50 dark:bg-rose-900/20 text-rose-900 dark:text-rose-300 font-bold";
-                                        icon = <X className="w-5 h-5 text-rose-500 dark:text-rose-400" />;
-                                    } else {
-                                        stateStyles = "border-slate-50 dark:border-slate-900 opacity-40";
-                                    }
-                                } else if (isSelected) {
-                                    stateStyles = "border-indigo-600 dark:border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 ring-2 ring-indigo-600 dark:ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900 text-indigo-900 dark:text-indigo-400 font-bold";
-                                }
+                                        if (isValidated) {
+                                            if (isKeyCorrect) {
+                                                stateStyles = "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-900 dark:text-emerald-300 font-bold ring-2 ring-emerald-500 ring-offset-2 dark:ring-offset-slate-900";
+                                                icon = <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />;
+                                            } else if (isSelected && !isKeyCorrect) {
+                                                stateStyles = "border-rose-300 bg-rose-50 dark:bg-rose-900/20 text-rose-900 dark:text-rose-300 font-bold";
+                                                icon = <X className="w-5 h-5 text-rose-500 dark:text-rose-400" />;
+                                            } else {
+                                                stateStyles = "border-slate-50 dark:border-slate-900 opacity-40";
+                                            }
+                                        } else if (isSelected) {
+                                            stateStyles = "border-indigo-600 dark:border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 ring-2 ring-indigo-600 dark:ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900 text-indigo-900 dark:text-indigo-400 font-bold";
+                                        }
 
-                                return (
-                                    <button
-                                        key={option.key}
-                                        disabled={isValidated}
-                                        onClick={() => setSelectedOption(option.key)}
-                                        className={clsx(
-                                            "w-full text-left p-5 md:p-6 rounded-2xl border-2 transition-all duration-300 flex items-center justify-between group touch-manipulation",
-                                            stateStyles
-                                        )}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <span className={clsx(
-                                                "flex items-center justify-center w-10 h-10 rounded-xl text-sm font-black transition-all shadow-sm",
-                                                isValidated && isKeyCorrect ? "bg-emerald-500 text-white" :
-                                                    isValidated && isSelected && !isKeyCorrect ? "bg-rose-500 text-white" :
-                                                        isSelected ? "bg-indigo-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
-                                            )}>
-                                                {option.key}
-                                            </span>
-                                            <span className="text-[17px] font-medium leading-snug">{option.value}</span>
-                                        </div>
-                                        <AnimatePresence>
-                                            {icon && (
-                                                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                                                    {icon}
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        {/* Desktop Validate Button */}
-                        <div className="hidden md:block mt-10">
-                            {!isValidated ? (
-                                <button
-                                    onClick={handleValidate}
-                                    disabled={!selectedOption}
-                                    className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black py-5 rounded-[1.5rem] transition-all shadow-xl hover:shadow-indigo-200 dark:hover:shadow-none hover:bg-slate-800 dark:hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] flex items-center justify-center gap-3"
-                                >
-                                    <span>Valider la réponse</span>
-                                    <ArrowRight className="w-6 h-6" />
-                                </button>
-                            ) : (
-                                <div className="text-center py-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl text-slate-400 dark:text-slate-500 font-bold text-sm tracking-widest uppercase">
-                                    Réponse enregistrée
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Feedback / Explanation Section */}
-                    <AnimatePresence>
-                        {isValidated && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 30 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className={clsx(
-                                    "mt-8 p-8 rounded-[2.5rem] border-2 shadow-sm transition-colors",
-                                    isCorrect
-                                        ? "bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900/30"
-                                        : "bg-amber-50/50 dark:bg-amber-950/10 border-amber-100 dark:border-amber-900/30"
+                                        return (
+                                            <button
+                                                key={option.key}
+                                                disabled={isValidated}
+                                                onClick={() => setSelectedOption(option.key)}
+                                                className={clsx(
+                                                    "w-full text-left p-5 md:p-6 rounded-2xl border-2 transition-all duration-300 flex items-center justify-between group touch-manipulation",
+                                                    stateStyles
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <span className={clsx(
+                                                        "flex items-center justify-center w-10 h-10 rounded-xl text-sm font-black transition-all shadow-sm",
+                                                        isValidated && isKeyCorrect ? "bg-emerald-500 text-white" :
+                                                            isValidated && isSelected && !isKeyCorrect ? "bg-rose-500 text-white" :
+                                                                isSelected ? "bg-indigo-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
+                                                    )}>
+                                                        {option.key}
+                                                    </span>
+                                                    <span className="text-[17px] font-medium leading-snug">{option.value}</span>
+                                                </div>
+                                                <AnimatePresence>
+                                                    {icon && (
+                                                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                                                            {icon}
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </button>
+                                        );
+                                    })
                                 )}
-                            >
-                                <div className="flex items-start gap-4">
-                                    <div className={clsx("p-3 rounded-2xl shadow-sm", isCorrect ? "bg-emerald-500" : "bg-amber-500")}>
-                                        <Info className="w-6 h-6 text-white" />
+                            </div>
+
+                            {/* Desktop Validate Button */}
+                            <div className="hidden md:block mt-10">
+                                {!isValidated ? (
+                                    <button
+                                        onClick={handleValidate}
+                                        disabled={!selectedOption}
+                                        disabled={!selectedOption || isUploading}
+                                        className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black py-5 rounded-[1.5rem] transition-all shadow-xl hover:shadow-indigo-200 dark:hover:shadow-none hover:bg-slate-800 dark:hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] flex items-center justify-center gap-3"
+                                    >
+                                        <span>{type === 'EXPRESSION_ORALE' ? 'Envoyer ma réponse' : 'Valider la réponse'}</span>
+                                        <ArrowRight className="w-6 h-6" />
+                                    </button>
+                                ) : (
+                                    <div className="text-center py-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl text-slate-400 dark:text-slate-500 font-bold text-sm tracking-widest uppercase">
+                                        {type === 'EXPRESSION_ORALE' ? 'Réponse envoyée pour évaluation' : 'Réponse enregistrée'}
                                     </div>
-                                    <div>
-                                        <h3 className={clsx("font-black text-xl mb-3", isCorrect ? "text-emerald-900 dark:text-emerald-400" : "text-amber-900 dark:text-amber-400")}>
-                                            {isCorrect ? "Parfait !" : "Besoin de revoir..."}
-                                        </h3>
-                                        <p className="text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-                                            {explanation}
-                                        </p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Feedback / Explanation Section */}
+                        <AnimatePresence>
+                            {isValidated && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 30 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={clsx(
+                                        "mt-8 p-8 rounded-[2.5rem] border-2 shadow-sm transition-colors",
+                                        isCorrect
+                                            ? "bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900/30"
+                                            : "bg-amber-50/50 dark:bg-amber-950/10 border-amber-100 dark:border-amber-900/30"
+                                    )}
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className={clsx("p-3 rounded-2xl shadow-sm", isCorrect ? "bg-emerald-500" : "bg-amber-500")}>
+                                            <Info className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <h3 className={clsx("font-black text-xl mb-3", isCorrect ? "text-emerald-900 dark:text-emerald-400" : "text-amber-900 dark:text-amber-400")}>
+                                                {type === 'EXPRESSION_ORALE' ? "Réponse transmise" : (isCorrect ? "Parfait !" : "Besoin de revoir...")}
+                                            </h3>
+                                            <p className="text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
+                                                {explanation}
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
             </main>
 
             {/* Sticky Mobile Footer */}

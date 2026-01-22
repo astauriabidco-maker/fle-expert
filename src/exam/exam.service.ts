@@ -7,6 +7,8 @@ import { EmailService } from '../common/services/email.service';
 
 
 
+import { AIService } from '../ai/ai.service';
+
 @Injectable()
 export class ExamService {
     constructor(
@@ -15,26 +17,27 @@ export class ExamService {
         private readonly securityService: SecurityService,
         private readonly notificationsService: NotificationsService,
         private readonly emailService: EmailService,
+        private readonly aiService: AIService,
     ) { }
 
 
 
-    async startExam(userId: string, organizationId: string) {
+    async startExam(userId: string, organizationId?: string) {
         // Start is now free. Credits are deducted upon completion.
         return this.prisma.examSession.create({
             data: {
                 userId,
-                organizationId,
+                organizationId: organizationId || undefined,
                 status: 'STARTED',
             }
         });
     }
 
-    async assignExam(userId: string, organizationId: string) {
+    async assignExam(userId: string, organizationId?: string) {
         return this.prisma.examSession.create({
             data: {
                 userId,
-                organizationId,
+                organizationId: (organizationId || null) as any,
                 status: 'ASSIGNED',
             }
         });
@@ -62,8 +65,10 @@ export class ExamService {
 
         const EXAM_COST = 50;
 
-        // 1. Deduct Credits
-        await this.creditsService.consumeCredits(session.organizationId, EXAM_COST);
+        // 1. Deduct Credits (only if organization exists - schools flow)
+        if (session.organizationId) {
+            await this.creditsService.consumeCredits(session.organizationId, EXAM_COST);
+        }
 
         // 2. Enhanced Scoring Logic
         const POINTS_MAP: Record<string, number> = {
@@ -493,13 +498,42 @@ export class ExamService {
             throw new NotFoundException('Question not found');
         }
 
-        const isCorrect = question.correctAnswer === selectedOption;
+        let isCorrect = question.correctAnswer === selectedOption;
+        let score: number | null = null;
+        let feedback: string | null = null;
+        let aiEvaluation: any = null;
+
+        // AI Evaluation for Oral Questions
+        if (question.isRecording && selectedOption) {
+            // selectedOption is the audio URL
+            // Assuming the audio URL is accessible or we can pass the path if it's local
+            // For now, passing the URL/Path directly
+            try {
+                const transcription = await this.aiService.transcribeAudio(selectedOption);
+                const evaluation = await this.aiService.evaluateOralResponse(
+                    transcription,
+                    question.aiPrompt || "Répondez à la question.",
+                    question.level
+                );
+
+                score = evaluation.score;
+                feedback = evaluation.feedback;
+                aiEvaluation = evaluation.details;
+
+                // For Oral, correctness is based on threshold (e.g. 50/100)
+                isCorrect = score !== null && score >= 50;
+            } catch (error) {
+                console.error("AI Evaluation failed:", error);
+                // Don't block saving, but maybe flag it?
+                feedback = "Erreur lors de l'évaluation l'IA. Sera réévalué plus tard.";
+            }
+        }
 
         if (existingAnswer) {
             // Update existing answer
             await this.prisma.userAnswer.update({
                 where: { id: existingAnswer.id },
-                data: { selectedOption, isCorrect }
+                data: { selectedOption, isCorrect, score, feedback, aiEvaluation }
             });
         } else {
             // Create new answer
@@ -509,10 +543,33 @@ export class ExamService {
                     questionId,
                     selectedOption,
                     isCorrect,
+                    score,
+                    feedback,
+                    aiEvaluation
                 }
             });
         }
 
         return { saved: true };
+    }
+
+    async getLatestDiagnostic(userId: string) {
+        const session = await this.prisma.examSession.findFirst({
+            where: {
+                userId,
+                type: 'DIAGNOSTIC',
+                status: 'COMPLETED'
+            },
+            orderBy: { completedAt: 'desc' }
+        });
+
+        if (!session) {
+            return null;
+        }
+
+        return {
+            ...session,
+            breakdown: session.breakdown ? JSON.parse(session.breakdown) : null
+        };
     }
 }

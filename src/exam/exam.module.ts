@@ -8,8 +8,10 @@ import { ExamService } from './exam.service';
 
 import { AdaptiveSequencerService } from './adaptive-sequencer.service';
 
+import { AIModule } from '../ai/ai.module';
+
 @Module({
-    imports: [PrismaModule, CommonModule, CertificateModule, CreditsModule],
+    imports: [PrismaModule, CommonModule, CertificateModule, CreditsModule, AIModule],
     controllers: [ExamController],
     providers: [ExamService, AdaptiveSequencerService],
     exports: [ExamService, AdaptiveSequencerService],

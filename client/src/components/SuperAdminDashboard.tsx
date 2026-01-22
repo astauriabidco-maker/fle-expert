@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
     Building2,
@@ -53,6 +52,8 @@ import GlobalParcours from './GlobalParcours';
 import GlobalHealthDashboard from './GlobalHealthDashboard';
 import ClassroomManagement from './ClassroomManagement';
 import CoachSessionsManager from './CoachSessionsManager';
+import ContentLabPage from './ContentLabPage';
+import CivicContentManager from './CivicContentManager';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ResponsiveContainer,
@@ -148,11 +149,10 @@ import ContractManagement from './ContractManagement';
 import NotificationCenter from './NotificationCenter';
 
 
-type TabType = 'dashboard' | 'orgs' | 'users' | 'ai' | 'logs' | 'contracts' | 'library' | 'settings' | 'agenda' | 'finance' | 'coaches' | 'parcours' | 'health' | 'sessions';
+type TabType = 'dashboard' | 'orgs' | 'users' | 'ai' | 'logs' | 'contracts' | 'library' | 'settings' | 'agenda' | 'finance' | 'coaches' | 'parcours' | 'health' | 'sessions' | 'content-lab' | 'civic-admin' | 'b2c';
 
 export default function SuperAdminDashboard() {
     const { token, logout } = useAuth();
-    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<TabType>('dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -264,6 +264,7 @@ export default function SuperAdminDashboard() {
         { id: 'coaches', label: 'Suivi Formateurs', icon: Users },
         { id: 'agenda', label: 'Agenda Hub', icon: Calendar },
         { id: 'finance', label: 'Finance', icon: DollarSign },
+        { id: 'b2c', label: 'B2C / Candidats Libres', icon: Megaphone },
 
         { type: 'header', label: 'Gestion Administrative' },
 
@@ -326,7 +327,7 @@ export default function SuperAdminDashboard() {
                         return (
                             <button
                                 key={item.id}
-                                onClick={() => ['content-lab', 'civic-admin'].includes(item.id) ? navigate(`/${item.id}`) : setActiveTab(item.id as TabType)}
+                                onClick={() => setActiveTab(item.id as TabType)}
                                 className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 group relative ${activeTab === item.id
                                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
                                     : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
@@ -432,6 +433,9 @@ export default function SuperAdminDashboard() {
                             {activeTab === 'logs' && <AuditLogs logs={auditLogs} />}
                             {activeTab === 'contracts' && <ContractManagement />}
                             {activeTab === 'library' && <GlobalLibrary token={token} />}
+                            {activeTab === 'content-lab' && <ContentLabPage />}
+                            {activeTab === 'civic-admin' && <CivicContentManager />}
+                            {activeTab === 'b2c' && <B2CManagement token={token} />}
                             {activeTab === 'settings' && <SystemSettings
                                 settings={settings}
                                 updateSetting={updateSetting}
@@ -2374,3 +2378,142 @@ function GlobalLibrary({ token }: { token: string | null }) {
         </div>
     );
 }
+
+function B2CManagement({ token }: { token: string | null }) {
+    const [stats, setStats] = useState({
+        totalLeads: 452,
+        paidDiagnostics: 128,
+        conversionToOF: '18%',
+        totalDirectRevenue: 3840
+    });
+
+    return (
+        <div className="space-y-8 max-w-[1600px] mx-auto">
+            {/* KPI Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <KPICard
+                    label="Pipeline B2C"
+                    value={stats.totalLeads}
+                    sub="Nouveaux inscrits direct"
+                    icon={<Users className="text-blue-500" />}
+                />
+                <KPICard
+                    label="Diagnostics Payés"
+                    value={stats.paidDiagnostics}
+                    sub="Tests complétés"
+                    icon={<Zap className="text-amber-500" />}
+                    trend="up"
+                />
+                <KPICard
+                    label="Taux de Conversion OF"
+                    value={stats.conversionToOF}
+                    sub="Vers centres partenaires"
+                    icon={<TrendingUp className="text-emerald-500" />}
+                    trend="up"
+                />
+                <KPICard
+                    label="Revenu Direct"
+                    value={`${stats.totalDirectRevenue.toLocaleString()} €`}
+                    sub="Stripe / PayPal"
+                    icon={<DollarSign className="text-indigo-500" />}
+                    trend="up"
+                />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Marketplace Management */}
+                <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-sm">
+                    <div className="flex items-center justify-between mb-8">
+                        <div>
+                            <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                                <Building2 className="text-blue-500" />
+                                Marketplace des Écoles Partenaires
+                            </h3>
+                            <p className="text-slate-400 text-sm mt-1">Gérez les établissements recommandés aux candidats libres</p>
+                        </div>
+                        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all">
+                            Ajouter une école
+                        </button>
+                    </div>
+
+                    <div className="space-y-4">
+                        {[
+                            { name: 'Alliance Française Paris', conversion: '24%', commission: '450€', status: 'Premium' },
+                            { name: 'Accord École de Langue', conversion: '18%', commission: '320€', status: 'Actif' },
+                            { name: 'Langue Onze Paris', conversion: '12%', commission: '210€', status: 'Actif' }
+                        ].map((school, i) => (
+                            <div key={i} className="flex items-center justify-between p-4 bg-slate-800/30 border border-slate-800 rounded-2xl group hover:border-blue-500/50 transition-all">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center font-bold text-blue-400">
+                                        {school.name[0]}
+                                    </div>
+                                    <div>
+                                        <div className="font-bold text-slate-100">{school.name}</div>
+                                        <div className="text-[10px] text-slate-500 uppercase font-black tracking-widest">{school.status}</div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-12">
+                                    <div className="text-right">
+                                        <div className="text-sm font-bold text-emerald-400">{school.conversion}</div>
+                                        <div className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Conv.</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-sm font-bold text-indigo-400">{school.commission}</div>
+                                        <div className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Comm.</div>
+                                    </div>
+                                    <button className="p-2 text-slate-500 hover:text-white transition-colors">
+                                        <Settings size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Conversion Funnel */}
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-sm">
+                    <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                        <Activity className="w-5 h-5 text-indigo-500" />
+                        Tunnel de Conversion
+                    </h3>
+
+                    <div className="space-y-6">
+                        {[
+                            { label: 'Visiteurs', count: 1250, percent: 100, color: 'bg-slate-700' },
+                            { label: 'Inscrits Direct', count: 452, percent: 36, color: 'bg-blue-500' },
+                            { label: 'Diagnostics Payés', count: 128, percent: 28, color: 'bg-amber-500' },
+                            { label: 'Mise en relation OF', count: 64, percent: 50, color: 'bg-indigo-500' },
+                            { label: 'Inscriptions OF', count: 23, percent: 35, color: 'bg-emerald-500' }
+                        ].map((step, i) => (
+                            <div key={i} className="space-y-2">
+                                <div className="flex justify-between text-xs font-bold">
+                                    <span className="text-slate-400 font-black uppercase tracking-widest">{step.label}</span>
+                                    <span className="text-white">{step.count} ({step.percent}%)</span>
+                                </div>
+                                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full ${step.color} transition-all duration-1000`}
+                                        style={{ width: `${step.percent}%` }}
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="mt-8 pt-8 border-t border-slate-800">
+                        <div className="flex items-center justify-between p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl">
+                            <div>
+                                <div className="text-[10px] text-indigo-400 uppercase font-black tracking-widest">LTV Estimée (B2C)</div>
+                                <div className="text-2xl font-black text-white">12,500 €</div>
+                            </div>
+                            <div className="p-3 bg-indigo-500 rounded-xl">
+                                <TrendingUp className="text-white" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+

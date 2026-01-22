@@ -1,5 +1,14 @@
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+
+function hashWithSalt(data: string): string {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = crypto
+        .createHmac('sha256', salt)
+        .update(data)
+        .digest('hex');
+    return `${salt}:${hash}`;
+}
 
 const prisma = new PrismaClient();
 
@@ -42,7 +51,7 @@ async function main() {
     console.log('✅ Organization created:', org.name);
 
     // Hash password
-    const hashedPassword = await bcrypt.hash('password123', 10);
+    const hashedPassword = hashWithSalt('password123');
 
     // Create Super Admin
     const superAdmin = await prisma.user.create({

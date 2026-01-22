@@ -67,4 +67,56 @@ export class AIService {
             ]
         };
     }
+
+    async transcribeAudio(audioPath: string): Promise<string> {
+        // In a real implementation, this would call OpenAI Whisper or Google Speech-to-Text
+        // For now, we return a mock transcription
+        console.log(`Transcribing audio file at: ${audioPath}`);
+        return "Ceci est une transcription simulée de la réponse du candidat. Le candidat parle de ses dernières vacances et utilise le passé composé et l'imparfait.";
+    }
+
+    async evaluateOralResponse(
+        transcription: string,
+        prompt: string,
+        level: string
+    ): Promise<{
+        score: number;
+        feedback: string;
+        details: {
+            coherence: number;
+            grammar: number;
+            vocabulary: number;
+        };
+    }> {
+        const systemPrompt = `Tu es un examinateur expert du CECRL pour le français.
+        Ton rôle est d'évaluer une transcription de réponse orale.
+        
+        Niveau cible: ${level}
+        Consigne donnée au candidat: ${prompt}
+        
+        Analyse la réponse suivante et fournis une évaluation JSON structurée :
+        {
+          "score": (note sur 100),
+          "feedback": (commentaire constructif en français),
+          "details": {
+            "coherence": (note sur 100),
+            "grammar": (note sur 100),
+            "vocabulary": (note sur 100)
+          }
+        }
+        `;
+
+        // Mock response for now as we don't have the OpenAI service injected immediately available
+        // logic would go here
+
+        return {
+            score: 75,
+            feedback: "Bonne utilisation des temps du passé. Attention à la prononciation et à quelques accords.",
+            details: {
+                coherence: 80,
+                grammar: 70,
+                vocabulary: 75,
+            },
+        };
+    }
 }

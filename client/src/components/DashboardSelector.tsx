@@ -27,6 +27,14 @@ const DashboardSelector: React.FC = () => {
         case 'SALES':
             return <Navigate to="/sales" replace />;
         case 'CANDIDATE':
+            // B2C Flow
+            if (user.acquisition === 'DIRECT' && user.isPaid && !user.hasCompletedDiagnostic) {
+                return <Navigate to="/diagnostic-prep" replace />;
+            }
+            // If direct candidate (no organization) and diagnostic finished, redirect to results/marketplace
+            if (!user.organizationId) {
+                return <Navigate to="/results" replace />;
+            }
             // Check if diagnostic is completed
             if (!user.hasCompletedDiagnostic) {
                 return <Navigate to="/diagnostic" replace />;

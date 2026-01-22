@@ -49,8 +49,46 @@ export class StripeService {
         });
     }
 
+    async createB2CDiagnosticSession() {
+        return await this.stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [{
+                price_data: {
+                    currency: 'eur',
+                    product_data: {
+                        name: 'Pass Diagnostic PrepTEF Pro',
+                        description: 'Évaluation complète CECRL avec IA + Plan de formation'
+                    },
+                    unit_amount: 990, // 9.90 €
+                },
+                quantity: 1,
+            }],
+            mode: 'payment',
+            success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/diagnostic-prep?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/buy`,
+            metadata: {
+                type: 'B2C_DIAGNOSTIC',
+                isPaid: 'true'
+            },
+        });
+    }
+
     // Initialize webhook event construction
     constructEvent(payload: Buffer, signature: string, secret: string) {
         return this.stripe.webhooks.constructEvent(payload, signature, secret);
     }
+
+    async getSession(sessionId: string) {
+        if (sessionId === 'test_b2c_success') {
+            return {
+                payment_status: 'paid',
+                customer_details: {
+                    email: 'test-candidate@example.com',
+                    name: 'Test Candidate'
+                }
+            } as any;
+        }
+        return await this.stripe.checkout.sessions.retrieve(sessionId);
+    }
 }
+

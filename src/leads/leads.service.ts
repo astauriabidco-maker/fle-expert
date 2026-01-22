@@ -6,11 +6,13 @@ import { PrismaService } from '../prisma/prisma.service';
 export class LeadsService {
     constructor(private prisma: PrismaService) { }
 
-    async createLead(data: { email: string; schoolName: string; contactName?: string; phone?: string }) {
+    async createLead(data: { candidateId: string; organizationId: string; matchingScore?: number }) {
         return this.prisma.lead.create({
             data: {
-                ...data,
-                status: 'NEW',
+                candidateId: data.candidateId,
+                organizationId: data.organizationId,
+                matchingScore: data.matchingScore,
+                status: 'PENDING',
             },
         });
     }

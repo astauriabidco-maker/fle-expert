@@ -76,7 +76,7 @@ export class AdaptiveSequencerService {
         // Attempt 1: Different Topic
         let candidates = await this.prisma.question.findMany({
             where: {
-                organizationId: session.organizationId,
+                organizationId: session.organizationId || undefined,
                 level: nextLevel,
                 id: { notIn: answeredIds },
                 topic: { not: lastSkill }, // Prefer different topic
@@ -88,7 +88,7 @@ export class AdaptiveSequencerService {
         if (candidates.length === 0) {
             candidates = await this.prisma.question.findMany({
                 where: {
-                    organizationId: session.organizationId,
+                    organizationId: session.organizationId || undefined,
                     level: nextLevel,
                     id: { notIn: answeredIds },
                 },

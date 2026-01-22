@@ -6,10 +6,11 @@ import { User, Lock, Building, CheckCircle, AlertCircle, ArrowRight, ShieldCheck
 const RegisterPage: React.FC = () => {
     const [searchParams] = useSearchParams();
     const token = searchParams.get('token');
+    const mode = searchParams.get('mode');
     const navigate = useNavigate();
     const { login } = useAuth();
 
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [verifying, setVerifying] = useState(true);
     const [invitationData, setInvitationData] = useState<{ email: string, organizationName: string } | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -17,6 +18,7 @@ const RegisterPage: React.FC = () => {
 
     const [form, setForm] = useState({
         name: '',
+        email: '',
         password: '',
         confirmPassword: '',
         objective: 'NATURALIZATION' // Default
@@ -25,7 +27,7 @@ const RegisterPage: React.FC = () => {
     useEffect(() => {
         const verifyToken = async () => {
             if (!token) {
-                // No error, just stop verifying to show Gatekeeper UI
+                // No error, just stop verifying to show Gatekeeper UI or Direct Register
                 setVerifying(false);
                 return;
             }
@@ -57,18 +59,27 @@ const RegisterPage: React.FC = () => {
         setError(null);
 
         try {
+            const body: any = {
+                name: form.name,
+                password: form.password,
+                objective: form.objective,
+                token: token
+            };
+
+            if (!token) {
+                body.email = form.email;
+            }
+
             const response = await fetch('http://localhost:3333/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: form.name,
-                    password: form.password,
-                    objective: form.objective,
-                    token
-                })
+                body: JSON.stringify(body)
             });
 
-            if (!response.ok) throw new Error("Erreur lors de la création du compte.");
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || "Erreur lors de la création du compte.");
+            }
 
             const data = await response.json();
             login(data.access_token, data.user, data.organization);
@@ -95,8 +106,8 @@ const RegisterPage: React.FC = () => {
         );
     }
 
-    // Gatekeeper UI: No Token Provided
-    if (!token) {
+    // Gatekeeper UI: No Token Provided and not in direct mode
+    if (!token && mode !== 'direct') {
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-900">
                 <div className="max-w-4xl w-full bg-white rounded-[2.5rem] shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
@@ -132,10 +143,13 @@ const RegisterPage: React.FC = () => {
                         </div>
 
                         <div className="mt-12 pt-8 border-t border-slate-800">
-                            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-2">Vous êtes un centre de formation ?</p>
-                            <a href="#demo" className="text-white font-bold hover:text-indigo-400 transition flex items-center gap-2 group">
-                                Demander un accès partenaire <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                            </a>
+                            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-2">Vous n'avez pas d'école ?</p>
+                            <button
+                                onClick={() => navigate('/register?mode=direct')}
+                                className="text-white font-bold hover:text-indigo-400 transition flex items-center gap-2 group text-left"
+                            >
+                                S'inscrire en Candidat Libre <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                            </button>
                         </div>
                     </div>
 
@@ -169,9 +183,10 @@ const RegisterPage: React.FC = () => {
                             </button>
                         </form>
 
-                        <div className="mt-8 text-center">
-                            <Link to="/login" className="text-slate-400 font-bold text-sm hover:text-slate-800 transition">
-                                J'ai déjà un compte
+                        <div className="mt-8 text-center pt-8 border-t border-slate-100">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Déjà inscrit ?</p>
+                            <Link to="/login" className="inline-flex items-center gap-2 text-indigo-600 font-bold text-sm hover:underline">
+                                Se connecter <ArrowRight size={14} />
                             </Link>
                         </div>
                     </div>
@@ -180,7 +195,7 @@ const RegisterPage: React.FC = () => {
         );
     }
 
-    if (error && !invitationData) {
+    if (error && !invitationData && token) {
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
                 <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-10 text-center border-t-8 border-rose-500">
@@ -202,7 +217,7 @@ const RegisterPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-900">
-            <div className="w-full max-w-xl grid grid-cols-1 md:grid-cols-1">
+            <div className="w-full max-w-xl">
                 <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden relative">
 
                     {/* Top Branding / Welcome */}
@@ -211,24 +226,38 @@ const RegisterPage: React.FC = () => {
                             <CheckCircle size={100} className="text-white" />
                         </div>
                         <h1 className="text-3xl font-black text-white mb-2 tracking-tight">Bienvenue 👋</h1>
-                        <p className="text-slate-400 font-medium">Finalisez votre inscription pour rejoindre votre centre</p>
+                        <p className="text-slate-400 font-medium">
+                            {token ? "Finalisez votre inscription pour rejoindre votre centre" : "Commencez votre préparation en Candidat Libre"}
+                        </p>
                     </div>
 
                     <div className="p-10 space-y-8">
-                        {/* Invitation Context */}
-                        <div className="bg-blue-50 border border-blue-100 p-6 rounded-3xl flex items-start gap-4 ring-4 ring-blue-50/50">
-                            <div className="bg-blue-600 p-3 rounded-2xl text-white shadow-lg shadow-blue-200">
-                                <Building size={20} />
+                        {token ? (
+                            <div className="bg-blue-50 border border-blue-100 p-6 rounded-3xl flex items-start gap-4 ring-4 ring-blue-50/50">
+                                <div className="bg-blue-600 p-3 rounded-2xl text-white shadow-lg shadow-blue-200">
+                                    <Building size={20} />
+                                </div>
+                                <div>
+                                    <div className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-1">Organisation</div>
+                                    <div className="text-blue-950 font-black text-lg">{invitationData?.organizationName}</div>
+                                    <div className="text-blue-900/60 text-sm font-medium">{invitationData?.email}</div>
+                                </div>
                             </div>
-                            <div>
-                                <div className="text-[10px] font-black text-blue-900/40 uppercase tracking-widest mb-1">Organisation</div>
-                                <div className="text-blue-950 font-black text-lg">{invitationData?.organizationName}</div>
-                                <div className="text-blue-900/60 text-sm font-medium">{invitationData?.email}</div>
+                        ) : (
+                            <div className="bg-indigo-50 border border-indigo-100 p-6 rounded-3xl flex items-start gap-4 ring-4 ring-indigo-50/50">
+                                <div className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg shadow-indigo-200">
+                                    <ShieldCheck size={20} />
+                                </div>
+                                <div>
+                                    <div className="text-[10px] font-black text-indigo-900/40 uppercase tracking-widest mb-1">Parcours</div>
+                                    <div className="text-indigo-950 font-black text-lg">Candidat Libre</div>
+                                    <div className="text-indigo-900/60 text-sm font-medium">Accès direct au diagnostic IA</div>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {error && (
-                            <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl text-rose-700 text-sm font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                            <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl text-rose-700 text-sm font-bold flex items-center gap-3">
                                 <div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
                                 {error}
                             </div>
@@ -249,6 +278,23 @@ const RegisterPage: React.FC = () => {
                                     />
                                 </div>
                             </div>
+
+                            {!token && (
+                                <div className="space-y-2">
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
+                                    <div className="relative">
+                                        <User className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300" />
+                                        <input
+                                            type="email"
+                                            value={form.email}
+                                            onChange={(e) => setForm({ ...form, email: e.target.value })}
+                                            className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:ring-4 ring-blue-50/50 focus:border-blue-500 focus:bg-white outline-none transition-all font-semibold placeholder:text-slate-300"
+                                            placeholder="votre@email.com"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="space-y-4">
                                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Quel est votre objectif ?</label>
@@ -325,6 +371,9 @@ const RegisterPage: React.FC = () => {
                     <div className="bg-slate-50 p-6 text-center text-xs font-bold text-slate-400 border-t border-slate-100">
                         En vous inscrivant, vous acceptez nos <a href="#" className="text-slate-900 hover:underline">conditions d'utilisation</a>
                     </div>
+                </div>
+                <div className="mt-8 text-center text-sm font-bold text-slate-400">
+                    Déjà inscrit ? <Link to="/login" className="text-indigo-600 hover:underline">Se connecter</Link>
                 </div>
             </div>
         </div>

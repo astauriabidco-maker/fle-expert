@@ -7,6 +7,9 @@ interface Question {
     options: string; // JSON string
     level: string;
     topic: string;
+    audioUrl?: string;
+    isRecording?: boolean;
+    maxListens?: number;
 }
 
 interface ExamSessionState {
@@ -44,8 +47,8 @@ export const useExamSession = (warningsCount: number = 0, examType: 'EXAM' | 'DI
         startedAt: null,
     });
 
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
-    const autoSaveRef = useRef<NodeJS.Timeout | null>(null);
+    const timerRef = useRef<any>(null);
+    const autoSaveRef = useRef<any>(null);
 
     // Timer countdown effect
     useEffect(() => {
@@ -68,7 +71,7 @@ export const useExamSession = (warningsCount: number = 0, examType: 'EXAM' | 'DI
     }, [state.sessionId, state.startedAt, state.isFinished]);
 
     const startExam = useCallback(async () => {
-        if (!token || !user || !organization) return;
+        if (!token || !user) return; // Organization is optional for B2C
         setState(s => ({ ...s, isLoading: true, error: null }));
 
         try {
@@ -76,7 +79,7 @@ export const useExamSession = (warningsCount: number = 0, examType: 'EXAM' | 'DI
             const urlParams = new URLSearchParams(window.location.search);
             const existingSessionId = urlParams.get('sessionId');
 
-            let session;
+            let session: any;
 
             if (existingSessionId) {
                 // Resume/Start existing
@@ -121,12 +124,15 @@ export const useExamSession = (warningsCount: number = 0, examType: 'EXAM' | 'DI
                     },
                     body: JSON.stringify({
                         userId: user.id,
-                        organizationId: organization.id,
+                        organizationId: (user.acquisition === 'DIRECT') ? undefined : (organization?.id || undefined),
                         type: examType
                     })
                 });
 
-                if (!startRes.ok) throw new Error('Failed to start exam');
+                if (!startRes.ok) {
+                    const errData = await startRes.json().catch(() => ({}));
+                    throw new Error(errData.message || `Failed to start exam: ${startRes.status}`);
+                }
                 const data = await startRes.json();
                 session = data.session;
             }

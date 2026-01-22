@@ -261,7 +261,7 @@ export const ExamResults: React.FC<ExamResultsProps> = ({
                     onClick={onClose}
                     className="flex-1 py-4 px-6 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center justify-center gap-2"
                 >
-                    Retour <ArrowRight size={20} />
+                    Voir mon rapport détaillé <ArrowRight size={20} />
                 </button>
 
                 {downloadUrl && (

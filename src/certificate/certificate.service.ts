@@ -1,3 +1,4 @@
+
 import { Injectable } from '@nestjs/common';
 import { renderToBuffer } from '@react-pdf/renderer';
 import * as QRCode from 'qrcode';
@@ -46,7 +47,8 @@ export class CertificateService {
         objective: string,
         skills: Record<string, number>,
         organizationName: string,
-        verificationHash: string
+        verificationHash: string,
+        organizationLogo?: string
     ): Promise<Buffer> {
         const verificationUrl = `https://prep-tef-2026.com/verify/${verificationHash}`;
         const qrCodeBase64 = await this.generateQrCode(verificationUrl);
@@ -60,7 +62,8 @@ export class CertificateService {
             skills,
             organizationName,
             verificationHash,
-            qrCodeBase64
+            qrCodeBase64,
+            organizationLogo
         });
 
         return await renderToBuffer(element as any);

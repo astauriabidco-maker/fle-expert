@@ -1,3 +1,4 @@
+
 import { Controller, Get, Param, Post, Res, Body, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
@@ -27,7 +28,7 @@ export class CertificateController {
         return {
             valid: true,
             candidate: session.user.name,
-            organization: session.organization.name,
+            organization: session.organization?.name || 'Candidat Libre',
             score: session.score,
             date: session.createdAt,
             level: session.estimatedLevel // Mapping to "estimatedLevel" as per schema
@@ -84,7 +85,7 @@ export class CertificateController {
             session.createdAt.toLocaleDateString('fr-FR'),
             score,
             level,
-            session.organization.name,
+            session.organization?.name || 'Candidat Libre',
             session.scoreHash
         );
 
@@ -148,8 +149,9 @@ export class CertificateController {
             level,
             objective,
             skills,
-            session.organization.name,
-            session.scoreHash
+            session.organization?.name || 'Candidat Libre',
+            session.scoreHash,
+            session.organization?.logoUrl || undefined
         );
 
         res.set({

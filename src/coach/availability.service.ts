@@ -46,6 +46,41 @@ export class AvailabilityService {
         });
     }
 
+    async createAvailabilityRange(
+        coachId: string,
+        startDate: Date,
+        endDate: Date,
+        daysOfWeek: number[],
+        startTime: string,
+        endTime: string
+    ) {
+        const slots = [];
+        const current = new Date(startDate);
+        while (current <= endDate) {
+            if (daysOfWeek.includes(current.getDay())) {
+                slots.push({
+                    coachId,
+                    dayOfWeek: current.getDay(),
+                    startTime,
+                    endTime,
+                    isRecurring: false,
+                    date: new Date(current)
+                });
+            }
+            current.setDate(current.getDate() + 1);
+        }
+
+        return this.prisma.coachAvailability.createMany({
+            data: slots
+        });
+    }
+
+    async deleteSlot(slotId: string) {
+        return this.prisma.coachAvailability.delete({
+            where: { id: slotId }
+        });
+    }
+
     async isSlotAvailable(coachId: string, date: Date, startTime: string, endTime: string): Promise<boolean> {
         const dayOfWeek = date.getDay(); // 0-6
         // Normalize date to remove time for comparison if needed

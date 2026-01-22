@@ -19,6 +19,17 @@ model Organization {
   primaryColor     String?
   status           String              @default("ACTIVE")
   settings         Json?               // Health thresholds/config
+  // Match & Lead Fields
+  levels           String[]            @default([]) // ["A1", "A2", "B1"]
+  specialties      String[]            @default([]) // ["FLE", "CIVISM", "PRO"]
+  address          String?
+  city             String?
+  zipCode          String?
+  coordinates      Json?               // { lat: number, lon: number }
+  nextSessionStart DateTime?
+  averageRating    Float               @default(4.5)
+  isPremium        Boolean             @default(false)
+
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   auditLogs        AuditLog[]
@@ -32,6 +43,22 @@ model Organization {
   users            User[]
   classrooms       Classroom[]
   courseSessions   CourseSession[]
+  leads            Lead[]
+  mediaAssets      MediaAsset[]
+}
+
+// Update Lead model (it was empty/minimal before)
+model Lead {
+  id             String       @id @default(uuid())
+  candidateId    String
+  organizationId String
+  status         String       @default("PENDING") // PENDING, SENT, CONTACTED, CONVERTED
+  matchingScore  Float?       // The score (0-100) at the time of match
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  candidate      User         @relation(fields: [candidateId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
 }
 
 model Classroom {
@@ -65,6 +92,9 @@ model User {
   streakCurrent            Int                 @default(0)
   createdAt                DateTime            @default(now())
   updatedAt                DateTime            @updatedAt
+  acquisition              SourceType          @default(ECOLE)
+  isPaid                   Boolean             @default(false)
+  refundCode               String?             @unique
   salesRepId               String?
   coachId                  String?
   classroomId              String?
@@ -81,6 +111,7 @@ model User {
   hasVerifiedPrerequisites Boolean             @default(false)
   prerequisitesProofUrl    String?
   lastActivityDate         DateTime?
+  pipelineStatusOverride   String?             // Manual override for Kanban position
   streakMax                Int                 @default(0)
   auditLogs                AuditLog[]
   availabilities           CoachAvailability[]
@@ -104,6 +135,46 @@ model User {
   coachedClassrooms        Classroom[]         @relation("CoachClassrooms")
   coachSessions            CourseSession[]     @relation("CoachSessions")
   attendances              Attendance[]        @relation("CandidateAttendances")
+  leads                    Lead[]
+  tasks                    Task[]              @relation("UserTasks")
+  candidateTasks           Task[]              @relation("CandidateTasks")
+  interactions             Interaction[]       @relation("UserInteractions")
+  candidateInteractions    Interaction[]       @relation("CandidateInteractions")
+}
+
+model Interaction {
+  id          String   @id @default(uuid())
+  userId      String   // Sales rep who created the interaction
+  candidateId String   // Related candidate
+  type        String   // CALL, EMAIL, MEETING, NOTE
+  content     String?  // Note content or description
+  createdAt   DateTime @default(now())
+
+  user        User     @relation("UserInteractions", fields: [userId], references: [id])
+  candidate   User     @relation("CandidateInteractions", fields: [candidateId], references: [id])
+
+  @@index([candidateId, createdAt])
+  @@index([userId])
+}
+
+model Task {
+  id          String    @id @default(uuid())
+  userId      String    // Sales rep who created/owns the task
+  candidateId String?   // Related candidate (optional)
+  type        String    // CALL, EMAIL, QUOTE, FOLLOW_UP
+  title       String
+  description String?
+  dueDate     DateTime
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation("UserTasks", fields: [userId], references: [id])
+  candidate   User?     @relation("CandidateTasks", fields: [candidateId], references: [id])
+
+  @@index([userId, dueDate])
+  @@index([candidateId])
 }
 
 model CoachAvailability {
@@ -189,7 +260,7 @@ model Contract {
 model ExamSession {
   id                   String       @id @default(uuid())
   userId               String
-  organizationId       String
+  organizationId       String?
   type                 String       @default("EXAM")
   status               String       @default("PENDING")
   score                Int?
@@ -211,7 +282,7 @@ model ExamSession {
   durationMinutes      Int          @default(60)
   feedback             String?
   responses            String?
-  organization         Organization @relation(fields: [organizationId], references: [id])
+  organization         Organization? @relation(fields: [organizationId], references: [id])
   user                 User         @relation(fields: [userId], references: [id])
   answers              UserAnswer[]
 }
@@ -222,6 +293,9 @@ model UserAnswer {
   questionId     String
   isCorrect      Boolean
   selectedOption String?
+  score          Int?        // 0-100 for AI graded questions
+  feedback       String?     // Text feedback from AI
+  aiEvaluation   Json?       // Structured details { coherence: 80, grammar: 70 ... }
   createdAt      DateTime    @default(now())
   question       Question    @relation(fields: [questionId], references: [id])
   session        ExamSession @relation(fields: [sessionId], references: [id])
@@ -247,10 +321,37 @@ model Question {
   options        String
   correctAnswer  String
   explanation    String
+  audioUrl       String?
+  isRecording    Boolean      @default(false)
+  maxListens     Int          @default(2)
   isActive       Boolean      @default(true)
   createdAt      DateTime     @default(now())
   organization   Organization @relation(fields: [organizationId], references: [id])
   answers        UserAnswer[]
+  
+  // CMS & AI Fields
+  difficulty     Int?         @default(50) // 1-100
+  estimatedTime  Int?         @default(60) // seconds
+  aiPrompt       String?      // Instructions for AI grader
+  status         String       @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
+  
+  mediaId        String?
+  media          MediaAsset?  @relation(fields: [mediaId], references: [id])
+}
+
+model MediaAsset {
+  id             String        @id @default(uuid())
+  filename       String
+  url            String
+  type           String        // AUDIO, IMAGE, VIDEO, PDF
+  size           Int           @default(0)
+  mimeType       String?
+  organizationId String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  
+  questions      Question[]
+  organization   Organization? @relation(fields: [organizationId], references: [id])
 }
 
 model Invitation {
@@ -293,16 +394,7 @@ model AuditLog {
   user           User?         @relation(fields: [userId], references: [id])
 }
 
-model Lead {
-  id          String   @id @default(uuid())
-  email       String
-  schoolName  String
-  contactName String?
-  phone       String?
-  status      String   @default("NEW")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
+
 
 model Notification {
   id        String   @id @default(uuid())
@@ -453,4 +545,9 @@ model Attendance {
   candidate     User          @relation("CandidateAttendances", fields: [candidateId], references: [id])
 
   @@unique([sessionId, candidateId])
+}
+
+enum SourceType {
+  ECOLE
+  DIRECT
 }

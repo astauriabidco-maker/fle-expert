@@ -7,7 +7,7 @@ export class LeadsController {
     constructor(private readonly leadsService: LeadsService) { }
 
     @Post()
-    async create(@Body() createLeadDto: { email: string; schoolName: string; contactName?: string; phone?: string }) {
+    async create(@Body() createLeadDto: { candidateId: string; organizationId: string; matchingScore?: number }) {
         return this.leadsService.createLead(createLeadDto);
     }
 }

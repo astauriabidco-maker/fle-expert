@@ -17,6 +17,9 @@ interface User {
     city?: string | null;
     postalCode?: string | null;
     targetLevel?: string | null;
+    refundCode?: string | null;
+    isPaid?: boolean;
+    acquisition?: 'ECOLE' | 'DIRECT';
     coach?: {
         id: string;
         name: string;
@@ -44,7 +47,7 @@ interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-    login: (token: string, user: User, organization: Organization) => void;
+    login: (token: string, user: User, organization: Organization | null) => void;
     logout: () => void;
     updateUser: (updates: Partial<User>) => void;
 }
@@ -83,11 +86,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const storedUser = localStorage.getItem('authUser');
         const storedOrg = localStorage.getItem('authOrg');
 
-        if (storedToken && storedUser && storedOrg) {
+        if (storedToken && storedUser) {
             try {
                 setToken(storedToken);
                 setUser(JSON.parse(storedUser));
-                setOrganization(JSON.parse(storedOrg));
+                if (storedOrg && storedOrg !== "null") {
+                    setOrganization(JSON.parse(storedOrg));
+                } else {
+                    setOrganization(null);
+                }
             } catch (error) {
                 console.error("Failed to parse stored session", error);
                 localStorage.clear();
@@ -96,7 +103,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsLoading(false);
     }, []);
 
-    const login = (newToken: string, newUser: User, newOrg: Organization) => {
+    const login = (newToken: string, newUser: User, newOrg: Organization | null) => {
         setToken(newToken);
         setUser(newUser);
         setOrganization(newOrg);
@@ -104,7 +111,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Persist
         localStorage.setItem('authToken', newToken);
         localStorage.setItem('authUser', JSON.stringify(newUser));
-        localStorage.setItem('authOrg', JSON.stringify(newOrg));
+        if (newOrg) {
+            localStorage.setItem('authOrg', JSON.stringify(newOrg));
+        } else {
+            localStorage.removeItem('authOrg');
+        }
     };
 
     const logout = () => {

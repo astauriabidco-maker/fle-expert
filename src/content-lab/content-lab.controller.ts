@@ -94,5 +94,11 @@ export class ContentLabController {
     async deleteSector(@Param('id') id: string) {
         return this.contentLabService.deleteSector(id);
     }
+
+    @Post('import')
+    async importQuestions(@Request() req: any, @Body() body: { questions: any[] }) {
+        const orgId = req.user.role === 'SUPER_ADMIN' ? null : req.user.organizationId;
+        return this.contentLabService.importQuestions(orgId, body.questions);
+    }
 }
 

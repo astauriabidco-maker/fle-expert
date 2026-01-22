@@ -4,9 +4,9 @@ import { useAuth } from '../contexts/AuthContext';
 import LandingPage from './LandingPage';
 
 const HomeRoute: React.FC = () => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
 
-    if (isAuthenticated) {
+    if (isAuthenticated && user?.role !== 'CANDIDATE') {
         return <Navigate to="/dashboard" replace />;
     }
 

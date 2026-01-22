@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
     Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer
@@ -18,6 +17,7 @@ import CoachCalendar from './CoachCalendar';
 import CoachStatsPanel from './CoachStatsPanel';
 import MessagingPanel from './MessagingPanel';
 import CoachSessionsManager from './CoachSessionsManager';
+import ContentLabPage from './ContentLabPage';
 import { FEEDBACK_TEMPLATES } from '../data/feedbackTemplates';
 
 // Candidate components for learner mode
@@ -76,7 +76,6 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 
 const CoachDashboard: React.FC = () => {
     const { organization, token, user } = useAuth();
-    const navigate = useNavigate();
 
     // Data state
     const [students, setStudents] = useState<Student[]>([]);
@@ -87,7 +86,7 @@ const CoachDashboard: React.FC = () => {
 
 
     // UI state
-    const [activeTab, setActiveTab] = useState<'students' | 'corrections' | 'validations' | 'profile' | 'stats' | 'calendar' | 'messages' | 'civic' | 'sessions' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling'>('students');
+    const [activeTab, setActiveTab] = useState<'students' | 'corrections' | 'validations' | 'profile' | 'stats' | 'calendar' | 'messages' | 'civic' | 'sessions' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling' | 'content-lab'>('students');
     const [myStats, setMyStats] = useState<any>(null);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
     const [detailedStudent, setDetailedStudent] = useState<any>(null);
@@ -653,7 +652,7 @@ const CoachDashboard: React.FC = () => {
                         <button onClick={() => setIsAssignModalOpen(true)} className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 text-sm">
                             <UserPlus size={16} /> Ajouter
                         </button>
-                        <button onClick={() => navigate('/content-lab')} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 text-sm">
+                        <button onClick={() => setActiveTab('content-lab')} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 text-sm">
                             <BookOpen size={16} /> Content Lab
                         </button>
                         <UserMenu />
@@ -693,6 +692,7 @@ const CoachDashboard: React.FC = () => {
                     <TabButton active={activeTab === 'myportfolio'} onClick={() => setActiveTab('myportfolio')} label="Mon Portfolio" icon={Award} />
                     <TabButton active={activeTab === 'mycivic'} onClick={() => setActiveTab('mycivic')} label="Citoyenneté" icon={Globe} />
                     <TabButton active={activeTab === 'mybilling'} onClick={() => setActiveTab('mybilling')} label="Facturation" icon={CreditCard} />
+                    {activeTab === 'content-lab' && <div className="mt-8"><ContentLabPage /></div>}
                 </div>
 
                 {activeTab === 'students' ? (

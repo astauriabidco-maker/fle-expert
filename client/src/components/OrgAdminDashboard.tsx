@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { StudentDetailModal } from './StudentDetailModal'; // Import
 import {
@@ -61,6 +60,7 @@ import { CandidateBilling } from './CandidateBilling';
 import { BusinessPerformance } from './BusinessPerformance';
 import ClassroomManagement from './ClassroomManagement';
 import CoachSessionsManager from './CoachSessionsManager';
+import ContentLabPage from './ContentLabPage';
 
 import {
     ResponsiveContainer,
@@ -73,11 +73,10 @@ import {
     Tooltip
 } from 'recharts';
 
-type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'salles' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres' | 'admin' | 'civic' | 'audit' | 'profil' | 'messages' | 'coach-calendar' | 'coach-stats' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling' | 'business' | 'sessions';
+type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'salles' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres' | 'admin' | 'civic' | 'audit' | 'profil' | 'messages' | 'coach-calendar' | 'coach-stats' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling' | 'business' | 'sessions' | 'content-lab';
 
 export default function OrgAdminDashboard() {
     const { organization, token, logout, user } = useAuth();
-    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<TabType>('dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     // Impersonation state
@@ -439,7 +438,7 @@ export default function OrgAdminDashboard() {
                         </button>
 
                         <button
-                            onClick={() => navigate('/content-lab')}
+                            onClick={() => setActiveTab('content-lab')}
                             className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20 active:scale-95 flex items-center gap-2 ml-4"
                         >
                             <Library size={14} className="fill-current" />
@@ -631,6 +630,7 @@ export default function OrgAdminDashboard() {
                                     handleSaveSettings={handleSaveSettings}
                                 />
                             )}
+                            {activeTab === 'content-lab' && <ContentLabPage />}
                             {activeTab === 'sessions' && (
                                 <div className="bg-[#1E293B]/50 rounded-3xl border border-slate-800 p-8 shadow-sm">
                                     <CoachSessionsManager onToast={(type, text) => {

@@ -24,6 +24,9 @@ import ImpersonationBanner from './components/ImpersonationBanner';
 import SalesDashboard from './components/SalesDashboard';
 import CoachDashboard from './components/CoachDashboard';
 import CandidateDashboard from './components/CandidateDashboard';
+import DiagnosticReport from './components/DiagnosticReport';
+import B2CLandingPage from './components/B2CLandingPage';
+import DiagnosticPrep from './components/DiagnosticPrep';
 import MaintenancePage from './components/MaintenancePage';
 import { useAuth } from './contexts/AuthContext';
 
@@ -42,6 +45,7 @@ function AppRoutes() {
       {/* Public Routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/buy" element={<B2CLandingPage />} />
       <Route path="/register-partner" element={<PartnerRegisterPage />} />
       <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="/activate" element={<OnboardingPage />} />
@@ -52,6 +56,7 @@ function AppRoutes() {
         <Route path="/exam/session" element={<ExamSessionPage />} />
         <Route path="/learning/practice" element={<PracticeSessionPage />} />
         <Route path="/diagnostic" element={<DiagnosticPage />} />
+        <Route path="/diagnostic-prep" element={<DiagnosticPrep />} />
       </Route>
 
       {/* Shared Content Lab (Admins & Coach) */}
@@ -88,6 +93,7 @@ function AppRoutes() {
       {/* 5. Candidate App Space */}
       <Route element={<ProtectedRoute allowedRoles={['CANDIDATE']} />}>
         <Route path="/app" element={<CandidateDashboard />} />
+        <Route path="/results" element={<DiagnosticReport />} />
       </Route>
 
       {/* Redirect unknown routes to home */}

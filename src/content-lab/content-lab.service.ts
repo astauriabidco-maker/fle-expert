@@ -155,5 +155,36 @@ export class ContentLabService {
             where: { id }
         });
     }
+    async importQuestions(orgId: string, questions: any[]) {
+        let imported = 0;
+        let errors = 0;
+
+        for (const q of questions) {
+            try {
+                await this.prisma.question.create({
+                    data: {
+                        organizationId: orgId,
+                        level: q.level || 'B1',
+                        topic: q.topic || 'General',
+                        questionText: q.questionText || q.text,
+                        content: q.content || q.text,
+                        options: typeof q.options === 'string' ? q.options : JSON.stringify(q.options),
+                        correctAnswer: q.correctAnswer || q.correct,
+                        explanation: q.explanation,
+                        isActive: true,
+                        aiPrompt: q.aiPrompt,
+                        difficulty: q.difficulty ? parseInt(q.difficulty) : 50,
+                        estimatedTime: q.estimatedTime ? parseInt(q.estimatedTime) : 60
+                    }
+                });
+                imported++;
+            } catch (e) {
+                console.error('Import error for question:', q, e);
+                errors++;
+            }
+        }
+
+        return { success: true, imported, errors };
+    }
 }
 

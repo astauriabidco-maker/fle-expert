@@ -28,6 +28,11 @@ import { CivicModule } from './civic/civic.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ClassroomModule } from './classroom/classroom.module';
 import { SessionsModule } from './sessions/sessions.module';
+import { RecommendationModule } from './recommendation/recommendation.module';
+import { MediaModule } from './media/media.module';
+import { UploadModule } from './upload/upload.module';
+import { TasksModule } from './tasks/tasks.module';
+import { InteractionsModule } from './interactions/interactions.module';
 
 
 @Module({
@@ -55,8 +60,13 @@ import { SessionsModule } from './sessions/sessions.module';
     CivicModule,
     NotificationsModule,
     ClassroomModule,
-    SessionsModule
-
+    SessionsModule,
+    SessionsModule,
+    RecommendationModule,
+    MediaModule,
+    UploadModule,
+    TasksModule,
+    InteractionsModule,
   ],
   controllers: [AppController],
   providers: [

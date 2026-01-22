@@ -1,15 +1,120 @@
-import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { v4 as uuidv4 } from 'uuid';
 import { OnboardingService } from '../onboarding/onboarding.service';
+import { EmailService } from '../common/services/email.service';
+
+export interface QuickAddDto {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    objective: string;  // 'NATURALISATION_B1', 'TITRE_SEJOUR_A2', 'PROFESSIONNEL_C1', etc.
+    desiredStartDate?: string;
+    coachId?: string;
+    sendEmail: boolean;
+}
 
 @Injectable()
 export class SalesService {
     constructor(
         private prisma: PrismaService,
         @Inject(forwardRef(() => OnboardingService))
-        private onboardingService: OnboardingService
+        private onboardingService: OnboardingService,
+        private emailService: EmailService
     ) { }
+
+    // ========== QUICK ADD CANDIDATE ==========
+    async quickAddCandidate(salesRepId: string, data: QuickAddDto) {
+        // 1. Get sales rep info
+        const salesRep = await this.prisma.user.findUnique({
+            where: { id: salesRepId },
+            include: { organization: true }
+        });
+
+        if (!salesRep || !salesRep.organizationId) {
+            throw new NotFoundException("Commercial non trouvé ou sans organisation.");
+        }
+
+        // 2. Check for duplicate email
+        const existingUser = await this.prisma.user.findUnique({
+            where: { email: data.email }
+        });
+
+        if (existingUser) {
+            throw new ConflictException("Un candidat avec cet email existe déjà.");
+        }
+
+        // 3. Map objective to targetLevel
+        const objectiveToLevel: Record<string, string> = {
+            'NATURALISATION_B1': 'B1',
+            'TITRE_SEJOUR_A2': 'A2',
+            'PROFESSIONNEL_C1': 'C1',
+            'ETUDES_B2': 'B2',
+            'DECOUVERTE_A1': 'A1',
+        };
+        const targetLevel = objectiveToLevel[data.objective] || 'B2';
+
+        // 4. Create the candidate
+        const fullName = `${data.firstName} ${data.lastName}`.trim();
+        const tempPassword = await import('bcryptjs').then(b => b.hash('ChangeMe123!', 10));
+
+        const candidate = await this.prisma.user.create({
+            data: {
+                email: data.email,
+                name: fullName,
+                phone: data.phone,
+                password: tempPassword,
+                role: 'CANDIDATE',
+                salesRepId: salesRepId,
+                organizationId: salesRep.organizationId,
+                targetLevel: targetLevel,
+                objective: data.objective,
+                coachId: data.coachId || null,
+                acquisition: 'ECOLE',
+            }
+        });
+
+        // 5. Generate diagnostic link
+        const token = await this.onboardingService.generateOnboardingToken({
+            id: candidate.id,
+            email: candidate.email
+        });
+
+        const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const diagnosticLink = `${baseUrl}/onboarding?token=${token}`;
+
+        // 6. Send email if requested
+        let emailSent = false;
+        if (data.sendEmail) {
+            try {
+                await this.emailService.sendStudentInvite(
+                    data.email,
+                    diagnosticLink,
+                    salesRep.organization?.name || 'Votre organisme de formation'
+                );
+                emailSent = true;
+            } catch (error) {
+                console.error('[QUICK-ADD] Email sending failed:', error);
+                // Don't throw - candidate is created, email just failed
+            }
+        }
+
+        return {
+            success: true,
+            candidate: {
+                id: candidate.id,
+                name: candidate.name,
+                email: candidate.email,
+                status: 'A_POSITIONNER'
+            },
+            diagnosticLink,
+            emailSent,
+            message: emailSent
+                ? `Candidat créé ! Invitation envoyée à ${data.email}.`
+                : `Candidat créé ! Copiez le lien pour l'envoyer manuellement.`
+        };
+    }
 
     async getStats(salesRepId: string) {
         // 1. Get active leads (Assigned candidates that are not simple visitors)
@@ -78,22 +183,57 @@ export class SalesService {
         });
 
         return candidates.map(c => {
-            // Determine status
-            let status = 'PROSPECT'; // Default
-            if (c.proposals.some(p => p.status === 'ACCEPTED')) status = 'INSCRIT';
-            else if (c.proposals.length > 0) status = 'DEVIS_EN_COURS';
-            else if (c.hasCompletedDiagnostic) status = 'DIAGNOSTIC_FAIT';
+            // Use manual override if present, otherwise calculate automatically
+            let pipelineStatus = c.pipelineStatusOverride;
+
+            if (!pipelineStatus) {
+                // Calculate pipeline status automatically
+                pipelineStatus = 'NOUVEAU';
+
+                if (c.proposals.some(p => p.status === 'ACCEPTED')) {
+                    pipelineStatus = 'INSCRIT';
+                } else if (c.proposals.length > 0) {
+                    pipelineStatus = 'DEVIS_ENVOYE';
+                } else if (c.hasCompletedDiagnostic) {
+                    pipelineStatus = 'DIAGNOSTIC_TERMINE';
+                } else if (c.examSessions.length > 0) {
+                    // Has at least one exam session started = diagnostic sent
+                    pipelineStatus = 'DIAGNOSTIC_ENVOYE';
+                }
+            }
 
             return {
                 id: c.id,
                 name: c.name,
                 email: c.email,
+                phone: c.phone,
                 level: c.currentLevel,
-                status,
-                lastActivity: c.lastActivityDate,
-                hasDiagnostic: c.hasCompletedDiagnostic
+                objective: c.objective,
+                pipelineStatus,
+                lastActivity: c.lastActivityDate || c.updatedAt,
+                hasDiagnostic: c.hasCompletedDiagnostic,
+                createdAt: c.createdAt,
             };
         });
+    }
+
+    async updateCandidateStatus(salesRepId: string, candidateId: string, newStatus: string) {
+        // Verify ownership
+        const candidate = await this.prisma.user.findFirst({
+            where: { id: candidateId, salesRepId }
+        });
+
+        if (!candidate) {
+            throw new NotFoundException("Candidat non trouvé ou non assigné.");
+        }
+
+        // Persist the manual override
+        await this.prisma.user.update({
+            where: { id: candidateId },
+            data: { pipelineStatusOverride: newStatus }
+        });
+
+        return { success: true, candidateId, newStatus };
     }
 
     async createCandidate(salesRepId: string, data: { email: string, name: string, targetLevel: string }) {
@@ -155,4 +295,35 @@ export class SalesService {
 
         return { link };
     }
+
+    // ========== GET COACHES FOR ASSIGNMENT ==========
+    async getCoaches(organizationId: string) {
+        return this.prisma.user.findMany({
+            where: {
+                organizationId,
+                role: { in: ['COACH', 'FORMATEUR'] }
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true
+            },
+            orderBy: { name: 'asc' }
+        });
+    }
+
+    async updateCandidateTags(salesRepId: string, candidateId: string, tags: string[]) {
+        // Verify ownership (simplified check)
+        const candidate = await this.prisma.user.findFirst({
+            where: { id: candidateId, role: 'CANDIDATE' }
+        });
+
+        if (!candidate) throw new NotFoundException("Candidat non trouvé");
+
+        return this.prisma.user.update({
+            where: { id: candidateId },
+            data: { tags: JSON.stringify(tags) }
+        });
+    }
 }
+

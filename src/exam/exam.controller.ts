@@ -14,23 +14,54 @@ export class ExamController {
     ) { }
 
     @Post('start')
-    async startExam(@Body() body: { userId: string, organizationId: string, type?: string }) {
-        const session = await this.examService.startExam(body.userId, body.organizationId);
+    async startExam(@Body() body: { userId: string, organizationId?: string, type?: string }) {
+        try {
+            console.log('DEBUG: Received start request', body);
 
-        // Set startedAt timestamp
-        const updatedSession = await this.prisma.examSession.update({
-            where: { id: session.id },
-            data: {
-                startedAt: new Date(),
-                type: body.type || 'EXAM',
-                durationMinutes: body.type === 'DIAGNOSTIC' ? 15 : 60,
+            if (!body.userId) {
+                throw new Error('Missing userId in request body');
             }
-        });
 
-        return {
-            message: "Exam started successfully",
-            session: updatedSession
-        };
+            // 1. Create Session
+            const session = await this.examService.startExam(body.userId, body.organizationId);
+            console.log('DEBUG: Session created', session.id);
+
+            // 2. Update metadata (simplified)
+            try {
+                await this.prisma.examSession.update({
+                    where: { id: session.id },
+                    data: {
+                        startedAt: new Date(),
+                        type: body.type || 'EXAM',
+                        durationMinutes: body.type === 'DIAGNOSTIC' ? 15 : 60,
+                    }
+                });
+            } catch (updateErr) {
+                console.error('DEBUG: Failed to update metadata, ignoring', updateErr);
+            }
+
+            return {
+                message: "Exam started successfully",
+                session
+            };
+        } catch (error: any) {
+            console.error("DEBUG: EXAM CONTROLLER ERROR", JSON.stringify(error, null, 2));
+
+            // Handle Prisma foreign key errors specifically for organizationId
+            if (error.code === 'P2003' && error.meta?.field_name?.includes('organizationId')) {
+                throw new BadRequestException({
+                    message: "Identifiant d'organisation invalide ou inexistant.",
+                    details: "L'ID d'organisation fourni n'existe pas dans la base de données.",
+                    code: 'INVALID_ORGANIZATION'
+                });
+            }
+
+            throw new BadRequestException({
+                message: "Impossible de démarrer l'examen",
+                details: error.message || 'Unknown error',
+                code: error.code || 'INTERNAL_ERROR'
+            });
+        }
     }
 
     @Post('assign')
@@ -98,7 +129,10 @@ export class ExamController {
                 text: question.questionText,
                 options: question.options,
                 level: question.level,
-                topic: question.topic
+                topic: question.topic,
+                audioUrl: question.audioUrl,
+                isRecording: question.isRecording,
+                maxListens: question.maxListens
             }
         };
     }
@@ -127,6 +161,15 @@ export class ExamController {
     @Get('stats/:userId')
     async getStats(@Param('userId') userId: string) {
         return this.examService.getStats(userId);
+    }
+
+    @Get('latest-diagnostic/:userId')
+    async getLatestDiagnostic(@Param('userId') userId: string) {
+        const session = await this.examService.getLatestDiagnostic(userId);
+        if (!session) {
+            throw new NotFoundException('No completed diagnostic found for this user');
+        }
+        return session;
     }
 
     /**

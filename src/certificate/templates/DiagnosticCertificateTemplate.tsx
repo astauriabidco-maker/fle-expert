@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
     Page,
@@ -162,7 +163,20 @@ interface DiagnosticCertificateProps {
     qrCodeBase64: string;
     verificationHash: string;
     organizationName: string;
+    organizationLogo?: string;
 }
+
+const SkillBar: React.FC<{ title: string; value: number; color?: string }> = ({ title, value, color = '#3b82f6' }) => (
+    <View style={{ marginBottom: 8, width: '100%' }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
+            <Text style={{ fontSize: 10, color: '#475569' }}>{title}</Text>
+            <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#1e293b' }}>{value}%</Text>
+        </View>
+        <View style={{ height: 6, backgroundColor: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+            <View style={{ height: '100%', width: `${value}%`, backgroundColor: color }} />
+        </View>
+    </View>
+);
 
 const DiagnosticCertificateTemplate: React.FC<DiagnosticCertificateProps> = ({
     candidateName,
@@ -174,14 +188,21 @@ const DiagnosticCertificateTemplate: React.FC<DiagnosticCertificateProps> = ({
     qrCodeBase64,
     verificationHash,
     organizationName,
+    organizationLogo,
 }) => (
     <Document>
         <Page size="A4" style={styles.page}>
             <View style={styles.border}>
                 <View>
-                    <View style={styles.header}>
-                        <Text style={styles.logoText}>PrepTEF 2026</Text>
-                        <Text style={styles.subLogoText}>POSITIONNEMENT INITIAL</Text>
+                    {/* Header with optional Co-Branding */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 }}>
+                        <View>
+                            <Text style={styles.logoText}>PrepTEF 2026</Text>
+                            <Text style={styles.subLogoText}>POSITIONNEMENT INITIAL</Text>
+                        </View>
+                        {organizationLogo && (
+                            <Image src={organizationLogo} style={{ width: 100, height: 40, objectFit: 'contain' }} />
+                        )}
                     </View>
 
                     <Text style={styles.title}>ATTESTATION DE NIVEAU</Text>
@@ -199,24 +220,13 @@ const DiagnosticCertificateTemplate: React.FC<DiagnosticCertificateProps> = ({
                             <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1e293b' }}>Score Global : {score} / 699</Text>
                         </View>
 
-                        <Text style={[styles.text, { fontWeight: 'bold', marginTop: 10 }]}>Détail par Compétence</Text>
-                        <View style={styles.scoreGrid}>
-                            <View style={styles.skillBox}>
-                                <Text style={styles.skillTitle}>Compréhension Orale</Text>
-                                <Text style={styles.skillValue}>{skills.CO || 0} %</Text>
-                            </View>
-                            <View style={styles.skillBox}>
-                                <Text style={styles.skillTitle}>Compréhension Écrite</Text>
-                                <Text style={styles.skillValue}>{skills.CE || 0} %</Text>
-                            </View>
-                            <View style={styles.skillBox}>
-                                <Text style={styles.skillTitle}>Grammaire & Lexique</Text>
-                                <Text style={styles.skillValue}>{Math.round(((skills.Grammaire || 0) + (skills.Vocabulaire || 0)) / 2)} %</Text>
-                            </View>
-                            <View style={styles.skillBox}>
-                                <Text style={styles.skillTitle}>Expression (Estimé)</Text>
-                                <Text style={styles.skillValue}>{Math.round(((skills.EO || 0) + (skills.EE || 0)) / 2)} %</Text>
-                            </View>
+                        <Text style={[styles.text, { fontWeight: 'bold', marginTop: 15, marginBottom: 10 }]}>Détail par Compétence</Text>
+
+                        <View style={{ padding: 15, backgroundColor: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                            <SkillBar title="Compréhension Orale" value={skills.CO || 0} />
+                            <SkillBar title="Compréhension Écrite" value={skills.CE || 0} />
+                            <SkillBar title="Grammaire & Lexique" value={Math.round(((skills.Grammaire || 0) + (skills.Vocabulaire || 0)) / 2) || 0} />
+                            <SkillBar title="Expression (Estimé)" value={Math.round(((skills.EO || 0) + (skills.EE || 0)) / 2) || 0} />
                         </View>
                     </View>
                 </View>

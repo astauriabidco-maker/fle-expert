@@ -134,7 +134,7 @@ const CandidateDashboard: React.FC = () => {
 
     const handleDownloadCertificate = async (sessionId: string) => {
         try {
-            const response = await fetch(`/api/certificate/download/${sessionId}`, {
+            const response = await fetch(`/api/certificate/diagnostic/${sessionId}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -379,7 +379,10 @@ const CandidateDashboard: React.FC = () => {
                                             "Analyse de tes performances en cours... Termine un examen blanc pour un diagnostic complet."
                                         )}
                                     </p>
-                                    <button className="bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 font-semibold py-2 px-4 rounded-xl text-sm shadow-sm border border-indigo-100 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-700 transition-colors">
+                                    <button
+                                        onClick={() => window.location.href = aiDiagnostic?.status === 'READY' ? '/results' : '/diagnostic'}
+                                        className="bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 font-semibold py-2 px-4 rounded-xl text-sm shadow-sm border border-indigo-100 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-700 transition-colors"
+                                    >
                                         {aiDiagnostic?.status === 'READY' ? "Voir le détail" : "Lancer le diagnostic"}
                                     </button>
                                 </div>
