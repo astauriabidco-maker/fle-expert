@@ -41,6 +41,13 @@ interface SkillBreakdown {
     level: string;
 }
 
+interface SkillAdvice {
+    feedback: string;
+    priority: 'high' | 'medium' | 'low';
+    exercises: string[];
+    improvement: string;
+}
+
 interface DiagnosticData {
     id: string;
     score: number;
@@ -50,6 +57,8 @@ interface DiagnosticData {
         skills: Record<string, SkillBreakdown>;
         summary: any;
         analysis: any;
+        skillAdvice?: Record<string, SkillAdvice>;
+        globalSummary?: string;
     };
 }
 
@@ -315,6 +324,93 @@ const DiagnosticReport: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* LLM Skill Advice Section */}
+                {data.breakdown.skillAdvice && (
+                    <div className="mb-16">
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
+                                    <Sparkles className="text-violet-600" />
+                                    Conseils Personnalisés par l'IA
+                                </h2>
+                                <p className="text-slate-500 font-medium mt-1">
+                                    {data.breakdown.globalSummary || "Recommandations basées sur vos résultats"}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {Object.entries(data.breakdown.skillAdvice).map(([skill, advice]) => {
+                                const skillNames: Record<string, string> = {
+                                    'CO': 'Compréhension Orale',
+                                    'EO': 'Expression Orale',
+                                    'CE': 'Compréhension Écrite',
+                                    'EE': 'Expression Écrite'
+                                };
+                                const skillIcons: Record<string, string> = {
+                                    'CO': '🎧',
+                                    'EO': '🗣️',
+                                    'CE': '📖',
+                                    'EE': '✍️'
+                                };
+                                const priorityColors: Record<string, string> = {
+                                    high: 'bg-rose-100 text-rose-600 border-rose-200',
+                                    medium: 'bg-amber-100 text-amber-600 border-amber-200',
+                                    low: 'bg-emerald-100 text-emerald-600 border-emerald-200'
+                                };
+                                const priorityLabels: Record<string, string> = {
+                                    high: 'Priorité haute',
+                                    medium: 'À améliorer',
+                                    low: 'Bon niveau'
+                                };
+
+                                return (
+                                    <motion.div
+                                        key={skill}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-lg shadow-slate-100/50"
+                                    >
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-2xl">
+                                                    {skillIcons[skill] || '📚'}
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-slate-900">{skillNames[skill] || skill}</h3>
+                                                    <span className={`text-xs font-bold px-2 py-1 rounded-full border ${priorityColors[advice.priority]}`}>
+                                                        {priorityLabels[advice.priority]}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-xs font-bold text-slate-400 uppercase">Objectif</div>
+                                                <div className="text-sm font-black text-indigo-600">{advice.improvement}</div>
+                                            </div>
+                                        </div>
+
+                                        <p className="text-slate-600 text-sm mb-4 leading-relaxed">
+                                            {advice.feedback}
+                                        </p>
+
+                                        <div className="bg-slate-50 rounded-xl p-4">
+                                            <div className="text-xs font-bold text-slate-400 uppercase mb-2">Exercices recommandés</div>
+                                            <ul className="space-y-2">
+                                                {advice.exercises.map((exercise, i) => (
+                                                    <li key={i} className="flex items-center gap-2 text-sm text-slate-700">
+                                                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                                        {exercise}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
 
                 {/* Partner Schools Section */}
                 <div>

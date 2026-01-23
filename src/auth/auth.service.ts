@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { SecurityService } from '../common/services/security.service';
+import { EmailService } from '../common/services/email.service';
 
 @Injectable()
 export class AuthService {
@@ -9,6 +10,7 @@ export class AuthService {
         private prisma: PrismaService,
         private security: SecurityService,
         private jwtService: JwtService,
+        private emailService: EmailService,
     ) { }
 
     async validateUser(email: string, pass: string): Promise<any> {
@@ -177,7 +179,10 @@ export class AuthService {
             }
         });
 
-        console.log(`[B2C] Created user ${email} with password ${tempPassword} and refund code ${refundCode}`);
+        // 5. Send welcome email with credentials
+        await this.emailService.sendB2CWelcome(email, name, tempPassword, refundCode);
+
+        console.log(`[B2C] Created user ${email} with refund code ${refundCode}`);
         return user;
     }
 

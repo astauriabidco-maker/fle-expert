@@ -41,7 +41,8 @@ import {
     Edit2,
     Trash2,
     Bell,
-    BookOpen
+    BookOpen,
+    Brain
 } from 'lucide-react';
 import CivicContentManager from './CivicContentManager';
 import QualiopiAuditPanel from './QualiopiAuditPanel';
@@ -61,6 +62,7 @@ import { BusinessPerformance } from './BusinessPerformance';
 import ClassroomManagement from './ClassroomManagement';
 import CoachSessionsManager from './CoachSessionsManager';
 import ContentLabPage from './ContentLabPage';
+import AISettingsPanel from './AISettingsPanel';
 
 import {
     ResponsiveContainer,
@@ -73,7 +75,7 @@ import {
     Tooltip
 } from 'recharts';
 
-type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'salles' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres' | 'admin' | 'civic' | 'audit' | 'profil' | 'messages' | 'coach-calendar' | 'coach-stats' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling' | 'business' | 'sessions' | 'content-lab';
+type TabType = 'dashboard' | 'equipe' | 'cohorte' | 'salles' | 'bibliotheque' | 'performance' | 'validations' | 'propositions' | 'rapports' | 'parametres' | 'admin' | 'civic' | 'audit' | 'profil' | 'messages' | 'coach-calendar' | 'coach-stats' | 'mypath' | 'myportfolio' | 'mycivic' | 'mybilling' | 'business' | 'sessions' | 'content-lab' | 'ai-settings';
 
 export default function OrgAdminDashboard() {
     const { organization, token, logout, user } = useAuth();
@@ -321,6 +323,7 @@ export default function OrgAdminDashboard() {
         // Separator - Settings
         { id: 'separator-settings', label: '──────', icon: null, separator: true },
         { id: 'profil', label: 'Mon Profil', icon: Users },
+        { id: 'ai-settings', label: 'Intelligence Artificielle', icon: Brain },
         { id: 'parametres', label: 'Configuration', icon: SettingsIcon },
     ];
 
@@ -619,6 +622,12 @@ export default function OrgAdminDashboard() {
                                         </div>
                                     </div>
                                     <CandidateBilling userId={impersonatedUserId || undefined} />
+                                </div>
+                            )}
+
+                            {activeTab === 'ai-settings' && (
+                                <div className="bg-[#1E293B]/50 rounded-3xl border border-slate-800 p-8 shadow-sm">
+                                    <AISettingsPanel />
                                 </div>
                             )}
 

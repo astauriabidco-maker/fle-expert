@@ -50,6 +50,7 @@ const INITIAL_SKILLS = [
 
 const CandidateDashboard: React.FC = () => {
     const { user, organization, token } = useAuth();
+    const isDirect = user?.acquisition === 'DIRECT';
     const [history, setHistory] = React.useState<any[]>([]);
     const [skillsData, setSkillsData] = React.useState(INITIAL_SKILLS);
     const [isLoading, setIsLoading] = React.useState(true);
@@ -196,13 +197,13 @@ const CandidateDashboard: React.FC = () => {
                                     Panel Admin
                                 </button>
                             )}
-                            {organization?.availableCredits !== undefined && (
+                            {!isDirect && organization?.availableCredits !== undefined && (
                                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/30 px-4 py-2 rounded-xl flex flex-col items-end">
                                     <p className="text-xs text-amber-800 dark:text-amber-400 font-medium uppercase tracking-wider">Crédits</p>
                                     <p className="text-lg font-bold text-amber-900 dark:text-amber-300 leading-none">{organization.availableCredits} 🪙</p>
                                 </div>
                             )}
-                            {organization?.logoUrl && (
+                            {!isDirect && organization?.logoUrl && (
                                 <img
                                     src={organization.logoUrl}
                                     alt={organization.name}
@@ -235,30 +236,34 @@ const CandidateDashboard: React.FC = () => {
                         >
                             Portfolio
                         </button>
-                        <button
-                            onClick={() => setActiveTab('calendar')}
-                            className={`px-6 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'calendar' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
-                        >
-                            Calendrier
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('messages')}
-                            className={`px-6 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'messages' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
-                        >
-                            Messages
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('attendance')}
-                            className={`px-6 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'attendance' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
-                        >
-                            📝 Émargement
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('billing')}
-                            className={`px-6 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'billing' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
-                        >
-                            Facturation
-                        </button>
+                        {!isDirect && (
+                            <>
+                                <button
+                                    onClick={() => setActiveTab('calendar')}
+                                    className={`px-6 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'calendar' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+                                >
+                                    Calendrier
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('messages')}
+                                    className={`px-6 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'messages' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+                                >
+                                    Messages
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('attendance')}
+                                    className={`px-6 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'attendance' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+                                >
+                                    📝 Émargement
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('billing')}
+                                    className={`px-6 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === 'billing' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+                                >
+                                    Facturation
+                                </button>
+                            </>
+                        )}
 
                         {(user?.objective === 'NATURALIZATION' || user?.objective === 'RESIDENCY_10_YEAR') && (
                             <button
@@ -442,33 +447,35 @@ const CandidateDashboard: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* Leaderboard Card (New) */}
-                                <div className="bg-slate-900 dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-800 flex flex-col relative overflow-hidden">
-                                    <div className="absolute top-[-20px] right-[-20px] opacity-10">
-                                        <Crown size={120} className="text-amber-500 rotate-12" />
+                                {/* Leaderboard Card - Hidden for DIRECT users */}
+                                {!isDirect && (
+                                    <div className="bg-slate-900 dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-800 flex flex-col relative overflow-hidden">
+                                        <div className="absolute top-[-20px] right-[-20px] opacity-10">
+                                            <Crown size={120} className="text-amber-500 rotate-12" />
+                                        </div>
+                                        <h3 className="text-sm font-black text-amber-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2 relative z-10">
+                                            <Crown className="w-4 h-4" /> Classement Local
+                                        </h3>
+                                        <div className="space-y-3 relative z-10 flex-grow">
+                                            {leaderboard.slice(0, 5).map((entry, idx) => (
+                                                <div key={entry.id} className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${entry.id === user?.id ? 'bg-amber-500/10 border border-amber-500/20' : 'hover:bg-slate-800'}`}>
+                                                    <span className={`w-6 text-center font-black text-xs ${idx === 0 ? 'text-amber-500' : 'text-slate-500'}`}>{idx + 1}</span>
+                                                    <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] font-bold text-white">
+                                                        {entry.name.charAt(0)}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className={`text-xs font-bold truncate ${entry.id === user?.id ? 'text-amber-500' : 'text-slate-200'}`}>{entry.name}</p>
+                                                        <p className="text-[9px] text-slate-500 font-bold uppercase">{entry.currentLevel}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-xs font-black text-slate-300">{entry.xp} XP</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <button className="mt-4 w-full py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-white transition-colors">Voir tout le classement</button>
                                     </div>
-                                    <h3 className="text-sm font-black text-amber-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2 relative z-10">
-                                        <Crown className="w-4 h-4" /> Classement Local
-                                    </h3>
-                                    <div className="space-y-3 relative z-10 flex-grow">
-                                        {leaderboard.slice(0, 5).map((entry, idx) => (
-                                            <div key={entry.id} className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${entry.id === user?.id ? 'bg-amber-500/10 border border-amber-500/20' : 'hover:bg-slate-800'}`}>
-                                                <span className={`w-6 text-center font-black text-xs ${idx === 0 ? 'text-amber-500' : 'text-slate-500'}`}>{idx + 1}</span>
-                                                <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] font-bold text-white">
-                                                    {entry.name.charAt(0)}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className={`text-xs font-bold truncate ${entry.id === user?.id ? 'text-amber-500' : 'text-slate-200'}`}>{entry.name}</p>
-                                                    <p className="text-[9px] text-slate-500 font-bold uppercase">{entry.currentLevel}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-xs font-black text-slate-300">{entry.xp} XP</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <button className="mt-4 w-full py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-white transition-colors">Voir tout le classement</button>
-                                </div>
+                                )}
                             </div>
 
                             {/* Histoty Table (New) */}

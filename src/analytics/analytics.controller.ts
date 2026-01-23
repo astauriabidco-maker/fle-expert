@@ -87,5 +87,83 @@ export class AnalyticsController {
     async getQualiopiAudit(@Param('orgId') orgId: string) {
         return this.analyticsService.getQualiopiAudit(orgId);
     }
+
+    @Post('test-ai-connection')
+    @Roles('ADMIN', 'COACH', 'ORG_ADMIN')
+    async testAIConnection(@Body() data: { provider: 'openai' | 'gemini', apiKey: string }) {
+        const { provider, apiKey } = data;
+
+        if (!apiKey || apiKey.trim() === '') {
+            return { success: false, error: 'Clé API non fournie' };
+        }
+
+        try {
+            if (provider === 'openai') {
+                // Test OpenAI connection with a minimal API call
+                const response = await fetch('https://api.openai.com/v1/models', {
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const models = await response.json();
+                    const hasGPT4 = models.data?.some((m: any) => m.id.includes('gpt-4'));
+                    const hasWhisper = models.data?.some((m: any) => m.id.includes('whisper'));
+                    return {
+                        success: true,
+                        provider: 'OpenAI',
+                        capabilities: {
+                            generation: true,
+                            transcription: hasWhisper,
+                            gpt4Available: hasGPT4
+                        },
+                        message: 'Connexion réussie à OpenAI'
+                    };
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    return {
+                        success: false,
+                        error: errorData.error?.message || 'Clé API invalide ou expirée'
+                    };
+                }
+            } else if (provider === 'gemini') {
+                // Test Gemini connection with a minimal API call
+                const response = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+                );
+
+                if (response.ok) {
+                    const models = await response.json();
+                    const hasProModel = models.models?.some((m: any) => m.name.includes('gemini-pro'));
+                    return {
+                        success: true,
+                        provider: 'Google Gemini',
+                        capabilities: {
+                            generation: true,
+                            transcription: false, // Gemini doesn't do transcription
+                            proModelAvailable: hasProModel
+                        },
+                        message: 'Connexion réussie à Google Gemini'
+                    };
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    return {
+                        success: false,
+                        error: errorData.error?.message || 'Clé API invalide ou expirée'
+                    };
+                }
+            } else {
+                return { success: false, error: 'Fournisseur non supporté' };
+            }
+        } catch (error: any) {
+            console.error('[AnalyticsController] AI connection test failed:', error);
+            return {
+                success: false,
+                error: error.message || 'Erreur de connexion au service IA'
+            };
+        }
+    }
 }
 

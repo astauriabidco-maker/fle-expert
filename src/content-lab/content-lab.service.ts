@@ -21,8 +21,8 @@ export class ContentLabService {
         this.logger.log(`Generating ${count} questions for org ${orgId}, topic: ${topic}, level: ${level}, sector: ${sector}`);
 
         try {
-            // Generate questions using AI
-            const generatedQuestions = await this.aiService.generateQuestions(topic, level, count, sector);
+            // Generate questions using AI (with org-specific settings)
+            const generatedQuestions = await this.aiService.generateQuestions(topic, level, count, sector, undefined, orgId);
 
             // Save each question to the database
             const savedQuestions = await Promise.all(

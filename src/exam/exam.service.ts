@@ -173,7 +173,7 @@ export class ExamService {
         }
 
         // Build comprehensive breakdown object
-        const breakdown = {
+        const breakdown: any = {
             skills: skillsBreakdown,
             summary: {
                 totalCorrect,
@@ -195,6 +195,22 @@ export class ExamService {
             },
             questionResults
         };
+
+        // Generate LLM-based skill feedback (async, don't block completion)
+        try {
+            const orgId = session.organizationId ?? undefined;
+            const llmFeedback = await this.aiService.generateSkillFeedback(
+                skillsBreakdown,
+                level,
+                orgId
+            );
+            breakdown.skillAdvice = llmFeedback.skillAdvice;
+            breakdown.globalSummary = llmFeedback.globalSummary;
+            console.log('[ExamService] LLM skill feedback generated successfully');
+        } catch (error) {
+            console.error('[ExamService] Failed to generate LLM skill feedback:', error);
+            // Continue without LLM feedback - basic recommendations still available
+        }
 
         // 4. Generate Security Hash
         const scoreHash = this.securityService.generateResultHash(
@@ -254,7 +270,9 @@ export class ExamService {
             breakdown: {
                 skills: skillsBreakdown,
                 summary: breakdown.summary,
-                analysis: breakdown.analysis
+                analysis: breakdown.analysis,
+                skillAdvice: breakdown.skillAdvice,
+                globalSummary: breakdown.globalSummary
             }
         };
     }
@@ -473,7 +491,12 @@ export class ExamService {
      */
     async saveAnswer(sessionId: string, questionId: string, selectedOption: string) {
         const session = await this.prisma.examSession.findUnique({
-            where: { id: sessionId }
+            where: { id: sessionId },
+            include: {
+                user: {
+                    select: { organizationId: true }
+                }
+            }
         });
 
         if (!session) {
@@ -483,6 +506,9 @@ export class ExamService {
         if (session.status === 'COMPLETED') {
             throw new BadRequestException('Cannot modify completed exam');
         }
+
+        // Get organization ID for org-specific AI settings
+        const orgId = session.user?.organizationId ?? undefined;
 
         // Check if answer already exists
         const existingAnswer = await this.prisma.userAnswer.findFirst({
@@ -509,11 +535,12 @@ export class ExamService {
             // Assuming the audio URL is accessible or we can pass the path if it's local
             // For now, passing the URL/Path directly
             try {
-                const transcription = await this.aiService.transcribeAudio(selectedOption);
+                const transcription = await this.aiService.transcribeAudio(selectedOption, orgId);
                 const evaluation = await this.aiService.evaluateOralResponse(
                     transcription,
                     question.aiPrompt || "Répondez à la question.",
-                    question.level
+                    question.level,
+                    orgId
                 );
 
                 score = evaluation.score;
